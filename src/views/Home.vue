@@ -3,22 +3,25 @@
     section.flight-request-form.section
       .columns.is-mobile.has-text-left(v-for="(flight, index) in currentFlightRoute")
         .column.is-1
-          .flight-section-number {{ index + 1 }}
+          .flight-section-number(:class="index === 0 ? 'first' : ''") {{ index + 1 }}
         .column
           b-field(:label="index === 0 ? 'From' : ''")
             b-autocomplete(
               rounded
+              @input="onInputAutocomplete(flight.startLocation)"
               v-model="flight.startLocation"
-              :data="filteredDataArray"
+              :data="filteredFlightLocations"
               placeholder="Start Destination"
               @select="option => flight.startLocation = option")
-              template(slot="empty") No results found
+              template(slot="empty")
+              No results found
         .column
           b-field(:label="index === 0 ? 'To' : ''")
             b-autocomplete(
             rounded
+            @input="onInputAutocomplete(flight.endLocation)"
             v-model="flight.endLocation"
-            :data="filteredDataArray"
+            :data="filteredFlightLocations"
             placeholder="End Destination"
             @select="option => flight.endLocation = option")
               template(slot="empty") No results found
@@ -46,16 +49,12 @@
           p.menu-label.filter-option__header
             | Travel Times
           .filter-option__body
-            b-field(v-for="(travelTime, index) in filters.travelTimes"
+            b-field(v-for="(travelTime, index) in filters.travelTimes" :key="index"
             v-bind:label="currentFlightRoute[index].startLocation + ' - ' + currentFlightRoute[index].endLocation")
               vue-slider(ref="slider" v-model="filters.travelTimes[index]", v-bind="options", class="traveltimes-slider")
-        .filter-option
-          p.menu-label.filter-option__header
-            | Total Travel Time
-          .filter-option__body
 
       section.flight-route-results.section.column.is-8
-        .columns.flight-route-result(v-for="(flightRouteResult, index) in filteredFlightRouteList")
+        .columns.flight-route-result(v-for="flightRouteResult in filteredFlightRouteList")
             .column.is-9
               .column
                 .columns.is-mobile.flight-info(v-for="flight in flightRouteResult.flights")
@@ -79,6 +78,7 @@
 </template>
 
 <script>
+/* eslint-disable */
 // @ is an alias to /src
 import BField from 'buefy/src/components/field/Field.vue';
 import BAutocomplete from 'buefy/src/components/autocomplete/Autocomplete.vue';
@@ -97,6 +97,7 @@ export default {
     const today = new Date();
 
     return {
+      name: '',
       date: new Date(),
       minDate: new Date(today.getFullYear(), today.getMonth(), today.getDate()),
       maxDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 365),
@@ -120,6 +121,8 @@ export default {
         'Frankfurt-Hahn (HHN)',
         'Bilbao (BIO)',
       ],
+
+      filteredFlightLocations: [],
 
       flightRouteResults: [
         {
@@ -234,7 +237,7 @@ export default {
         },
       ],
 
-      name: '',
+      destInputSelected: [],
       startLocation: null,
       endLocation: null,
       currentFlightRoute: [
@@ -257,57 +260,60 @@ export default {
 
       filters: {
         stopovers: ['0'],
-        travelTimes: [[
-          '00:00', '23:59',
-        ],
-        [
-          '00:00', '23:59',
-        ],
-        [
-          '00:00', '23:59',
-        ]],
+        travelTimes: [
+          ['00:00', '23:59'],
+          ['00:00', '23:59'],
+          ['00:00', '23:59'],
+        ]
       },
 
-      currentTrip: [
-
-      ],
+      currentTrip: [],
     };
   },
   methods: {
-    pinFlight(flightRouteResult) {
-      var pinned = flightRouteResult.pinned;
+    onInputAutocomplete(input) {
+        this.filteredFlightLocations = this.flightLocations.filter(option => option
+        .toString()
+        .toLowerCase()
+        .indexOf(input.toLowerCase()) >= 0);
+    },
 
-      for (var flightRoute of this.flightRouteResults) {
+    pinFlight(flightRouteResult) {
+      let flightRouteToPin = flightRouteResult;
+
+      for (const flightRoute of this.flightRouteResults) {
         flightRoute.pinned = false;
       }
 
-      if (pinned) {
+      if (flightRouteToPin.pinned) {
         this.$toast.open('Flight Route was unpinned.');
-        flightRouteResult.pinned = false;
+        flightRouteToPin.pinned = false;
       } else {
         this.$toast.open('Flight Route was pinned.');
-        flightRouteResult.pinned = true;
+        flightRouteToPin.pinned = true;
       }
+
+      flightRouteResult = flightRouteToPin
     },
 
+    // check if time is in certain time range
     timeInTimespan(time, timespan) {
       const timespanTemp = [timespan[0].split(':'), timespan[1].split(':')];
       const timeTemp = time.split(':');
 
-      const startDate = new Date(2012, 10, 2, parseInt(timespanTemp[0][0]), parseInt(timespanTemp[0][1]));
-      const endDate = new Date(2012, 10, 2, parseInt(timespanTemp[1][0]), parseInt(timespanTemp[1][1]));
-      const travelDate = new Date(2012, 10, 2, parseInt(timeTemp[0]), parseInt(timeTemp[1]));
+      const startDate = new Date(2012, 10, 2, parseInt(timespanTemp[0][0], 10), parseInt(timespanTemp[0][1]), 10);
+      const endDate = new Date(2012, 10, 2, parseInt(timespanTemp[1][0], 10), parseInt(timespanTemp[1][1]), 10);
+      const travelDate = new Date(2012, 10, 2, parseInt(timeTemp[0], 10), parseInt(timeTemp[1]), 10);
 
       return startDate <= travelDate && endDate >= travelDate;
     },
+
+    // update flight route if other comp is changing it
+    updateFlightRoute(flightRoute) {
+      // TODO
+    }
   },
   computed: {
-    filteredDataArray() {
-      return this.flightLocations.filter(option => option
-        .toString()
-        .toLowerCase()
-        .indexOf(this.name.toLowerCase()) >= 0);
-    },
 
     filteredFlightRouteList() {
       // if stopovers are changing
@@ -323,12 +329,11 @@ export default {
 
       // if travel time range slider is changing
       filteredList = filteredList.filter((flightRouteResult) => {
-        var i = 0;
-        for (var flight of flightRouteResult.flights) {
+        let i = 0;
+        for (const flight of flightRouteResult.flights) {
           if (this.timeInTimespan(flight.startTime, this.filters.travelTimes[i])
               && this.timeInTimespan(flight.endTime, this.filters.travelTimes[i])) {
-            i++;
-            console.log('test');
+            i += 1;
             continue;
           }
           return false;
@@ -341,7 +346,7 @@ export default {
   },
   mounted() {
     // fill hours for travel time slider options
-    for (let i = 0; i < 49; i++) {
+    for (let i = 0; i < 49; i += 1) {
       let time = '';
       if (i === 0) time = '00:00';
       else if (i === 48) time = '23:59';
@@ -354,13 +359,24 @@ export default {
       }
       this.options.data[i] = time;
     }
+
+    let i = 0;
+    for (var flight in this.currentFlightRoute) {
+      let flightInput = {
+        start: false,
+        end: false
+      };
+      this.destInputSelected[i] = flightInput;
+      i += 1;
+    }
   },
 };
 </script>
 <style lang="sass">
 .flight-section-number
   font-weight: bold
-  padding: 30% 0 0 30%
+  &.first
+    vertical-align: middle
 
 .flight-request-form
   background-color: aliceblue
