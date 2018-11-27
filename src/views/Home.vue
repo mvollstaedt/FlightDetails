@@ -1,40 +1,42 @@
 <template lang="pug">
   .home
-    section.flight-request-form.section
-      .columns.is-mobile.has-text-left(v-for="(flight, index) in currentFlightRoute")
-        .column.is-1
-          .flight-section-number(:class="index === 0 ? 'first' : ''") {{ index + 1 }}
-        .column
-          b-field(:label="index === 0 ? 'From' : ''")
-            b-autocomplete(
+    section.flight-request-form.section#main
+      .container
+        .columns.is-variable.is-2.is-mobile.has-text-left(v-for="(flight, index) in currentFlightRoute")
+          .column.is-1.is-relative
+            .flight-no(:class="'flight-no-' + index")
+              | {{ index + 1 }}
+          .column
+            b-field(:label="index === 0 ? 'From' : ''")
+              b-autocomplete(
+                rounded
+                @input="onInputAutocomplete(flight.startLocation)"
+                v-model="flight.startLocation"
+                :data="filteredFlightDestinations"
+                placeholder="Start Destination"
+                @select="option => flight.startLocation = option")
+                template(slot="empty")
+                No results found
+          .column
+            b-field(:label="index === 0 ? 'To' : ''")
+              b-autocomplete(
               rounded
-              @input="onInputAutocomplete(flight.startLocation)"
-              v-model="flight.startLocation"
-              :data="filteredFlightLocations"
-              placeholder="Start Destination"
-              @select="option => flight.startLocation = option")
-              template(slot="empty")
-              No results found
-        .column
-          b-field(:label="index === 0 ? 'To' : ''")
-            b-autocomplete(
-            rounded
-            @input="onInputAutocomplete(flight.endLocation)"
-            v-model="flight.endLocation"
-            :data="filteredFlightLocations"
-            placeholder="End Destination"
-            @select="option => flight.endLocation = option")
-              template(slot="empty") No results found
-        .column
-          b-field(:label="index === 0 ? 'When' : ''")
-            b-datepicker(
-              rounded
-              placeholder="Click to select..."
-              :min-date="minDate"
-              :max-date="maxDate"
-              v-model="flight.travelDate")
+              @input="onInputAutocomplete(flight.endLocation)"
+              v-model="flight.endLocation"
+              :data="filteredFlightDestinations"
+              placeholder="End Destination"
+              @select="option => flight.endLocation = option")
+                template(slot="empty") No results found
+          .column
+            b-field(:label="index === 0 ? 'When' : ''")
+              b-datepicker(
+                rounded
+                placeholder="Click to select..."
+                :min-date="minDate"
+                :max-date="maxDate"
+                v-model="flight.travelDate")
     .columns
-      aside.section.menu.filter-options.column.is-4.has-text-left
+      aside.section.menu.filter-options.column.is-4.has-text-left(v-if="!isTabletSize && !isPhoneSize")
         .filter-option
           p.menu-label.filter-option__header
             | Stopovers
@@ -53,26 +55,26 @@
             v-bind:label="currentFlightRoute[index].startLocation + ' - ' + currentFlightRoute[index].endLocation")
               vue-slider(ref="slider" v-model="filters.travelTimes[index]", v-bind="options", class="traveltimes-slider")
 
-      section.flight-route-results.section.column.is-8
+      section.flight-route-results.section.column
         .columns.flight-route-result(v-for="flightRouteResult in filteredFlightRouteList")
             .column.is-9
               .column
-                .columns.is-mobile.flight-info(v-for="flight in flightRouteResult.flights")
-                  .column.is-1
-                    | LOGO
-                  .column.is-7
-                    p {{ flight.travelTime + ' min' }}
+                .columns.is-mobile.flight-info.is-vertical-centered(v-for="flight in flightRouteResult.flights")
+                  .column.is-2
+                    .placeholder-logo(:class="isTabletSize || isPhoneSize ? 'is-mobile' : ''")
+                  .column.is-7-desktop.is-relative
+                    p.flight-duration {{ flight.travelTime + ' min' }}
                     .is-vertical-centered
                       .flight-start
                         .flight-location {{ flight.startLocation }}
                         .flight-time {{ flight.startTime }}
-                      .flight-hr {{ '----' }}
+                      i.flight-hr.fas.fa-plane
                       .flight-end
                         .flight-location {{ flight.endLocation }}
                         .flight-time {{ flight.endTime }}
             .column.is-3.is-vertical-centered.is-vertically-stacked
                 .flight-route-price {{ flightRouteResult.price }}
-                button.button.is-medium.is-primary(@click="pinFlight(flightRouteResult)") {{ flightRouteResult.pinned ? 'Unpin Flight' : 'Pin Flight' }}
+                button.button.is-medium.is-primary(@click="pinFlight(flightRouteResult)") Check Out
 
 
 </template>
@@ -84,6 +86,9 @@ import BField from 'buefy/src/components/field/Field.vue';
 import BAutocomplete from 'buefy/src/components/autocomplete/Autocomplete.vue';
 import BDatepicker from 'buefy/src/components/datepicker/Datepicker.vue';
 import VueSlider from 'vue-slider-component';
+
+import { Flight, FlightRoute, FlightSegment } from '../lib/model';
+import * as Helpers from '../lib/helpers';
 
 export default {
   name: 'home',
@@ -98,6 +103,12 @@ export default {
 
     return {
       name: '',
+
+      SIZE_PHONE: 768,
+      SIZE_TABLET: 1024,
+      isTabletSize: false,
+      isPhoneSize: false,
+
       date: new Date(),
       minDate: new Date(today.getFullYear(), today.getMonth(), today.getDate()),
       maxDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 365),
@@ -108,155 +119,16 @@ export default {
         tooltipDir: 'bottom',
       },
 
-      flightLocations: [
-        'Barcelona (BCN)',
-        'Barcelona (BLA)',
-        'Madrid (MAD)',
-        'Berlin (alle)',
-        'Berlin (TXL)',
-        'Berlin (SXF)',
-        'Frankfurt am Main (alle)',
+      flightDestinations: [],
 
-        'Frankfurt am Main (FRA)',
-        'Frankfurt-Hahn (HHN)',
-        'Bilbao (BIO)',
-      ],
+      filteredFlightDestinations: [],
 
-      filteredFlightLocations: [],
-
-      flightRouteResults: [
-        {
-          price: '400 €',
-          pinned: false,
-          flights: [
-            {
-              startLocation: 'Berlin (TXL)',
-              endLocation: 'Barcelona (BCN)',
-              startTime: '06:30',
-              endTime: '09:30',
-              travelTime: '180',
-              travelDate: today,
-              cabinClass: 'Economy',
-              stopovers: 1,
-            },
-            {
-              startLocation: 'Barcelona (BCN)',
-              endLocation: 'Madrid (MAD)',
-              startTime: '10:00',
-              endTime: '11:00',
-              travelTime: '60',
-              travelDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 5),
-              cabinClass: 'Economy',
-              stopovers: 0,
-            },
-            {
-              startLocation: 'Berlin (TXL)',
-              endLocation: 'Madrid (MAD)',
-              startTime: '12:00',
-              endTime: '15:00',
-              travelTime: '180',
-              travelDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 10),
-              cabinClass: 'Economy',
-              stopovers: 0,
-            },
-          ],
-        },
-        {
-          price: '500 €',
-          pinned: false,
-          flights:
-          [
-            {
-              startLocation: 'Berlin (SXF)',
-              endLocation: 'Barcelona (BCN)',
-              startTime: '02:30',
-              endTime: '05:30',
-              travelTime: '180',
-              travelDate: today,
-              cabinClass: 'Economy',
-              stopovers: 0,
-            },
-            {
-              startLocation: 'Barcelona (BCN)',
-              endLocation: 'Madrid (MAD)',
-              startTime: '06:30',
-              endTime: '07:30',
-              travelTime: '60',
-              travelDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 5),
-              cabinClass: 'Economy',
-              stopovers: 0,
-            },
-            {
-              startLocation: 'Berlin (SXF)',
-              endLocation: 'Madrid (MAD)',
-              startTime: '09:00',
-              endTime: '12:00',
-              travelTime: '180',
-              travelDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 10),
-              cabinClass: 'Economy',
-              stopovers: 0,
-            },
-          ],
-        },
-        {
-          price: '1024 €',
-          pinned: false,
-          flights:
-            [
-              {
-                startLocation: 'Berlin (SXF)',
-                endLocation: 'Barcelona (BCN)',
-                startTime: '08:30',
-                endTime: '11:30',
-                travelTime: '180',
-                travelDate: today,
-                cabinClass: 'Economy',
-                stopovers: 0,
-              },
-              {
-                startLocation: 'Barcelona (BCN)',
-                endLocation: 'Madrid (MAD)',
-                startTime: '12:30',
-                endTime: '13:30',
-                travelTime: '60',
-                travelDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 5),
-                cabinClass: 'Economy',
-                stopovers: 0,
-              },
-              {
-                startLocation: 'Berlin (SXF)',
-                endLocation: 'Madrid (MAD)',
-                startTime: '15:00',
-                endTime: '16:00',
-                travelTime: '180',
-                travelDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 10),
-                cabinClass: 'Economy',
-                stopovers: 0,
-              },
-            ],
-        },
-      ],
+      flightRouteResults: [],
 
       destInputSelected: [],
       startLocation: null,
       endLocation: null,
-      currentFlightRoute: [
-        {
-          startLocation: 'Berlin (TXL)',
-          endLocation: 'Barcelona (BCN)',
-          travelDate: today,
-        },
-        {
-          startLocation: 'Barcelona (BCN)',
-          endLocation: 'Madrid (MAD)',
-          travelDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 5),
-        },
-        {
-          startLocation: 'Madrid (MAD)',
-          endLocation: 'Berlin (TXL)',
-          travelDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 10),
-        },
-      ],
+      currentFlightRoute: [],
 
       filters: {
         stopovers: ['0'],
@@ -264,7 +136,7 @@ export default {
           ['00:00', '23:59'],
           ['00:00', '23:59'],
           ['00:00', '23:59'],
-        ]
+        ],
       },
 
       currentTrip: [],
@@ -272,7 +144,7 @@ export default {
   },
   methods: {
     onInputAutocomplete(input) {
-        this.filteredFlightLocations = this.flightLocations.filter(option => option
+        this.filteredFlightDestinations = this.flightDestinationStrings.filter(option => option
         .toString()
         .toLowerCase()
         .indexOf(input.toLowerCase()) >= 0);
@@ -311,9 +183,31 @@ export default {
     // update flight route if other comp is changing it
     updateFlightRoute(flightRoute) {
       // TODO
+    },
+
+    onResize(event) {
+      // is tablet size
+      if(event.target.innerWidth <= this.SIZE_TABLET && event.target.innerWidth > this.SIZE_PHONE) {
+        this.isTabletSize = true;
+        this.isPhoneSize = false;
+      }
+      // is phone size
+      else if (event.target.innerWidth <= this.SIZE_PHONE) {
+        this.isTabletSize = false;
+        this.isPhoneSize = true;
+      }
+      // is desktop size
+      else {
+        this.isPhoneSize = false;
+        this.isTabletSize = false;
+      }
     }
   },
   computed: {
+
+    flightDestinationStrings() {
+      return this.flightDestinations.map(location => location.city + " (" + location.id + ")");
+    },
 
     filteredFlightRouteList() {
       // if stopovers are changing
@@ -344,7 +238,20 @@ export default {
       return filteredList;
     },
   },
+  created() {
+
+    // fill in dummy data
+    this.currentFlightRoute = Helpers.getCurrentFlightRouteDummy();
+    this.flightRouteResults = Helpers.getFlightRouteDummyData();
+    this.flightDestinations = Helpers.getDestinationList();
+
+  },
   mounted() {
+
+    // register event listeners for resize event
+    window.addEventListener('resize', this.onResize);
+    window.dispatchEvent(new Event('resize'));
+
     // fill hours for travel time slider options
     for (let i = 0; i < 49; i += 1) {
       let time = '';
@@ -370,19 +277,49 @@ export default {
       i += 1;
     }
   },
+
+  beforeDestroy() {
+    window.removeEventListener('resize', this.onResize);
+  }
 };
 </script>
 <style lang="sass">
-.flight-section-number
-  font-weight: bold
-  &.first
-    vertical-align: middle
+.flight-no
+  position: absolute
+  text-align: center
+  bottom: 25%
+  width: 30px
+  height: 30px
+  border-radius: 50%
+  line-height: 30px
+  font-size: .9rem
+  border: 1px solid #ccc
+  right: 0
+
+.flight-start, .flight-end
+  min-width: 40%
+
+.flight-time
+  font-size: .8rem
+
+.flight-duration
+  font-size: .8rem
+  position: absolute
+  left: 0
+  right: 0
+  margin-left: auto
+  margin-right: auto
+  top: 5px
+
+
+.flight-no-0
+  bottom: 15%
 
 .flight-request-form
   background-color: aliceblue
 
 .flight-info
-  border-bottom: 1px solid #ccc
+  border-bottom: 1px solid #d9d9d9
   &:last-child
     border-bottom: none
 
@@ -396,8 +333,8 @@ export default {
 
 .flight-route-result
   margin-bottom: 2rem !important
-  border: 1px solid #ccc
   border-radius: 5px
+  box-shadow: 0px 9px 33px -9px rgba(0,0,0,0.75)
 
 .is-vertical-centered
   display: flex
@@ -416,5 +353,16 @@ export default {
 .flight-route-price
   font-size: 2rem
   font-weight: bold
+
+.is-relative
+  position: relative
+
+.placeholder-logo
+  width: 70px
+  height: 70px
+  background-color: #ffb5d8
+  &.is-mobile
+    width: 50px
+    height: 50px
 
 </style>
