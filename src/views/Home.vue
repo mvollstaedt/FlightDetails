@@ -14,9 +14,9 @@
                 v-model="flight.startLocation"
                 :data="filteredFlightDestinations"
                 placeholder="Start Destination"
-                @select="option => flight.startLocation = option")
-                template(slot="empty")
-                No results found
+                @select="option => flight.startLocation = option"
+                class="input-location")
+                template(slot="empty") No results found
           .column
             b-field(:label="index === 0 ? 'To' : ''")
               b-autocomplete(
@@ -25,7 +25,8 @@
               v-model="flight.endLocation"
               :data="filteredFlightDestinations"
               placeholder="End Destination"
-              @select="option => flight.endLocation = option")
+              @select="option => flight.endLocation = option"
+              class="input-location")
                 template(slot="empty") No results found
           .column
             b-field(:label="index === 0 ? 'When' : ''")
@@ -35,47 +36,113 @@
                 :min-date="minDate"
                 :max-date="maxDate"
                 v-model="flight.travelDate")
-    .columns
-      aside.section.menu.filter-options.column.is-4.has-text-left(v-if="!isTabletSize && !isPhoneSize")
-        .filter-option
-          p.menu-label.filter-option__header
-            | Stopovers
-          .filter-option__body
-            b-field
-              b-checkbox(v-model="filters.stopovers" native-value="0") 0 Stopovers
-            b-field
-              b-checkbox(v-model="filters.stopovers" native-value="1") 1 Stopover
-            b-field
-            b-checkbox(v-model="filters.stopovers" native-value="2") 2 Stopovers
-        .filter-option
-          p.menu-label.filter-option__header
-            | Travel Times
-          .filter-option__body
-            b-field(v-for="(travelTime, index) in filters.travelTimes" :key="index"
-            v-bind:label="currentFlightRoute[index].startLocation + ' - ' + currentFlightRoute[index].endLocation")
-              vue-slider(ref="slider" v-model="filters.travelTimes[index]", v-bind="options", class="traveltimes-slider")
+        .columns.is-mobile
+          .column
+            button.button.is-medium.is-success.is-outlined.is-pulled-right(v-if="isPhoneSize || isTabletSize" @click="isFilterDrawerActive = true")
+              | Filter
+          .column.is-narrow
+            button.button.is-medium.is-success.is-pulled-right(@click="searchFlightRoutes")
+              | Suchen
+    .container
+      .columns
+        aside.section.menu.filter-options.column.is-3.has-text-left(v-show="!isTabletSize && !isPhoneSize" :class="!isTabletSize && !isPhoneSize ? 'is-desktop' : 'is-mobile'")
+          .filter-option
+            p.menu-label.filter-option__header
+              | Stopovers
+            .filter-option__body
+              b-field
+                b-checkbox(v-model="filters.stopovers" native-value="0") 0 Stopovers
+              b-field
+                b-checkbox(v-model="filters.stopovers" native-value="1") 1 Stopover
+              b-field
+              b-checkbox(v-model="filters.stopovers" native-value="2") 2 Stopovers
+          .filter-option
+            p.menu-label.filter-option__header
+              | Travel Times
+            .filter-option__body
+              b-field(v-for="(travelTime, index) in filters.travelTimes" :key="index"
+              v-bind:label="currentFlightRoute[index].startLocation + ' - ' + currentFlightRoute[index].endLocation")
+                vue-slider(ref="slider" v-model="filters.travelTimes[index]" v-bind="options" class="traveltimes-slider")
 
-      section.flight-route-results.section.column
-        .columns.flight-route-result(v-for="flightRouteResult in filteredFlightRouteList")
-            .column.is-9
-              .column
-                .columns.is-mobile.flight-info.is-vertical-centered(v-for="flight in flightRouteResult.flights")
-                  .column.is-2
-                    .placeholder-logo(:class="isTabletSize || isPhoneSize ? 'is-mobile' : ''")
-                  .column.is-7-desktop.is-relative
-                    p.flight-duration {{ flight.travelTime + ' min' }}
-                    .is-vertical-centered
-                      .flight-start
-                        .flight-location {{ flight.startLocation }}
-                        .flight-time {{ flight.startTime }}
-                      i.flight-hr.fas.fa-plane
-                      .flight-end
-                        .flight-location {{ flight.endLocation }}
-                        .flight-time {{ flight.endTime }}
-            .column.is-3.is-vertical-centered.is-vertically-stacked
-                .flight-route-price {{ flightRouteResult.price }}
-                button.button.is-medium.is-primary(@click="pinFlight(flightRouteResult)") Check Out
+        section.flight-route-results.section.column.is-offset-1-desktop(:class="!isTabletSize && !isPhoneSize ? 'is-desktop' : 'is-mobile'")
+          .columns.flight-route-result(v-if="filteredFlightRouteList.length > 0" v-for="flightRouteResult in filteredFlightRouteList")
+              .column.is-9
+                .column
+                  .columns.is-mobile.flight-info.is-vh-centered(v-for="flight in flightRouteResult.flights")
+                    .column.is-2
+                      .placeholder-logo(:class="isTabletSize || isPhoneSize ? 'is-mobile' : ''")
+                    .column.is-7-desktop.is-relative
+                      p.flight-duration {{ flight.travelTime + ' min' }}
+                      .is-vh-centered
+                        .flight-start
+                          .flight-location {{ flight.startLocation }}
+                          .flight-time {{ flight.startTime }}
+                        i.flight-hr.fas.fa-plane
+                        .flight-end
+                          .flight-location {{ flight.endLocation }}
+                          .flight-time {{ flight.endTime }}
+              .column.is-3.is-vh-centered.is-vertically-stacked.flight-route-results__cta(:class="isPhoneSize ? 'is-mobile' : 'is-desktop'")
+                  .flight-route-price {{ flightRouteResult.price }}
+                  button.button.is-medium.is-primary(@click="isFlightModalActive = true") Check Out
+          .columns(v-if="filteredFlightRouteList.length <= 0")
+            .column
+              | Keine Suchergebnisse gefunden
+    b-modal(:active.sync="isFlightModalActive")
+      .modal-background
+      .modal-card
+        header.modal-card-head
+          p.modal-card-title Flugrouten Details
+        section.modal-card-body
+          .trip-section
+            header.trip-section-header
+              h3.trip-section-title
+                | BAR - MAD
+            section.trip-section-content
+              .columns(v-for="flightRouteResult in filteredFlightRouteList")
+                .column
+                  .columns.is-mobile.flight-segment-info.is-vertical-centered.is-multiline(v-for="flight in flightRouteResult.flights")
+                    .column.is-2
+                      .placeholder-logo(:class="isTabletSize || isPhoneSize ? 'is-mobile' : ''")
+                    .column.is-relative.is-10
+                      p.flight-duration {{ flight.travelTime + ' min' }}
+                      .is-vh-centered
+                        .flight-start
+                          .flight-location {{ flight.startLocation }}
+                          .flight-time {{ flight.startTime }}
+                        i.flight-hr.fas.fa-plane
+                        .flight-end
+                          .flight-location {{ flight.endLocation }}
+                          .flight-time {{ flight.endTime }}
+                    .column.is-offset-1.is-10
+                      .trip-section-waiting-time
+                        | Wartezeit: 10min
+        footer.modal-card-foot.is-horizontal-centered
+          button.button.is-medium.is-primary(@click="saveFlight") Speichern
 
+    aside.nav-drawer-container.has-text-left(v-show="isPhoneSize || isTabletSize" :class="isFilterDrawerActive ? 'is-active' : ''")
+      .filter-drawer
+        .filter-drawer-header
+          h3.filter-drawer-title
+            | Filter
+          button.button.is-outlined.filter-drawer-btn-close(@click="isFilterDrawerActive = false") Fertig
+        .filter-drawer-content
+          .filter-option
+            p.menu-label.filter-option__header
+              | Stopovers
+            .filter-option__body
+              b-field
+                b-checkbox(v-model="filters.stopovers" native-value="0") 0 Stopovers
+              b-field
+                b-checkbox(v-model="filters.stopovers" native-value="1") 1 Stopover
+              b-field
+              b-checkbox(v-model="filters.stopovers" native-value="2") 2 Stopovers
+          .filter-option
+            p.menu-label.filter-option__header
+              | Travel Times
+            .filter-option__body
+              b-field(v-for="(travelTime, index) in filters.travelTimes" :key="index"
+              v-bind:label="currentFlightRoute[index].startLocation + ' - ' + currentFlightRoute[index].endLocation")
+                vue-slider(ref="slider" v-model="filters.travelTimes[index]", v-bind="options", class="traveltimes-slider")
 
 </template>
 
@@ -125,6 +192,8 @@ export default {
 
       flightRouteResults: [],
 
+      flightRouteDB: [],
+
       destInputSelected: [],
       startLocation: null,
       endLocation: null,
@@ -140,6 +209,9 @@ export default {
       },
 
       currentTrip: [],
+
+      isFlightModalActive: false,
+      isFilterDrawerActive: false,
     };
   },
   methods: {
@@ -185,6 +257,12 @@ export default {
       // TODO
     },
 
+    saveFlight(event) {
+      this.isFlightModalActive = false;
+      this.$toast.open("Flug wurde gespeichert.");
+      // TODO: send data to other comps
+    },
+
     onResize(event) {
       // is tablet size
       if(event.target.innerWidth <= this.SIZE_TABLET && event.target.innerWidth > this.SIZE_PHONE) {
@@ -200,6 +278,33 @@ export default {
       else {
         this.isPhoneSize = false;
         this.isTabletSize = false;
+      }
+    },
+
+    searchFlightRoutes() {
+      this.flightRouteResults = [];
+      let flightRouteSuitable = true;
+
+      for (let flightRoute of this.flightRouteDB) {
+        let i = 0;
+        for (let flight of flightRoute) {
+          if (flight._startDate === this.currentFlightRoute[index].travelDate
+            && flight.startLocation === this.currentFlightRoute[index].startLocation
+            && flight.endLocation === this.currentFlightRoute[index].endLocation) {
+            i += 1;
+            continue;
+          }
+          else {
+            flightRouteSuitable = false;
+            break;
+          }
+        }
+        if (flightRouteSuitable) {
+          this.flightRouteResults.add(flightRoute);
+        }
+
+        flightRouteSuitable = true;
+        i = 0;
       }
     }
   },
@@ -243,6 +348,7 @@ export default {
     // fill in dummy data
     this.currentFlightRoute = Helpers.getCurrentFlightRouteDummy();
     this.flightRouteResults = Helpers.getFlightRouteDummyData();
+    this.flightRouteDB = Helpers.getFlightRouteDummyData();
     this.flightDestinations = Helpers.getDestinationList();
 
   },
@@ -336,9 +442,23 @@ export default {
   border-radius: 5px
   box-shadow: 0px 9px 33px -9px rgba(0,0,0,0.75)
 
+.flight-route-results__cta
+  &.is-mobile
+    border-top: 5px dashed #d2dae2
+  &.is-desktop
+    border-left: 5px dashed #d2dae2
+
+.is-vh-centered
+  display: flex
+  align-items: center
+  justify-content: center
+
 .is-vertical-centered
   display: flex
   align-items: center
+
+.is-horizontal-centered
+  display: flex
   justify-content: center
 
 .flight-start, .flight-end, .flight-hr
@@ -364,5 +484,69 @@ export default {
   &.is-mobile
     width: 50px
     height: 50px
+
+.filter-options
+  &.is-desktop
+
+.trip-section-title
+  text-align: left
+  font-weight: bold
+
+.trip-section-waiting-time
+  font-weight: bold
+  background-color: rgb(232, 240, 246)
+  border-radius: 10px
+
+@media screen and (min-width: 1024px)
+  .modal-card, .modal-content
+    width: 800px
+
+body.no-scrolling
+  overflow-x: hidden
+  overflow-y: scroll !important
+
+.nav-drawer-container
+  position: absolute
+  height: 100%
+  width: 100%
+  background-color: aliceblue
+  z-index: 1000
+  top: 0
+  left: -100%
+  transition: .4s ease
+  position: fixed
+  overflow: hidden
+  &.is-active
+    left: 0
+
+.nav-drawer-container
+  padding: 2rem
+
+.filter-drawer
+  max-width: 600px
+  margin: 0 auto
+
+.filter-drawer-header
+  padding-bottom: 1rem
+  position: relative
+
+.filter-drawer-title
+  font-weight: bold
+  font-size: 1.7rem
+  text-align: center
+
+.filter-drawer-btn-close
+  position: absolute
+  top: 0
+  right: 0
+  background-color: transparent
+
+.input-location
+  transition: .4s ease
+  &.is-active.is-mobile
+    z-index: 999
+    position: absolute
+    width: 80vw
+
 
 </style>

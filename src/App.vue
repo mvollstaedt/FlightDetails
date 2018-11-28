@@ -5,7 +5,10 @@
       .hero-body
         .container
           h1.title Flugsuche
+            |
             i.fas.fa-plane
+            span.is-pulled-right(style="font-size: 1.8rem;")
+              i.far.fa-bell
           h2.subtitle Finde den passenden Flug
     router-view
 </template>

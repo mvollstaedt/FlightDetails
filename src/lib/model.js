@@ -1,8 +1,8 @@
-/* eslint-disable import/prefer-default-export,no-trailing-spaces */
+/* eslint-disable import/prefer-default-export,no-trailing-spaces,no-underscore-dangle,no-underscore-dangle */
 export class FlightSegment {
-  constructor(startDate, startLocation, endDate, endLocation) {
-    this._startDate = startDate;
-    this._endDate = endDate;
+  constructor(startTime, startLocation, endTime, endLocation) {
+    this._startTime = startTime;
+    this._endTime = endTime;
 
     this._startLocation = startLocation;
     this._endLocation = endLocation;
@@ -24,6 +24,8 @@ export class Flight {
 
     this._flightNo = flightNo;
     this._airline = airline;
+
+    this._cabinClass = 'Economy';
   }
 
   set cabinClass(cabinClass) {
@@ -32,6 +34,32 @@ export class Flight {
 
   set flightSchedule(flightSegments) {
     this._flightSegments = flightSegments;
+  }
+
+  get startLocation() {
+    return this._flightSegments[0].startLocation;
+  }
+
+  get endLocation() {
+    return this._flightSegments[this._flightSegments.length-1].endLocation;
+  }
+
+  get flightDuration() {
+    let duration = (this._endDate - this._startDate) / 1000 / 60;
+    if (duration <= 0) {
+      duration = 0;
+      console.log(`Flight Duration of flight ${this._flightNo} was <= 0`);
+    }
+    return duration;
+  }
+
+  get stopoverCount() {
+    let count = this._flightSegments.length;
+    if (count < 0) {
+      count = 0;
+      console.log(`Stopover count of flight ${this._flightNo}was somehow < 0`);
+    }
+    return count;
   }
 }
 

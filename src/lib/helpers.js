@@ -1,6 +1,22 @@
 /* eslint-disable import/prefer-default-export */
+import { Flight, FlightSegment, FlightRoute } from './model';
+
 export function getFlightRouteDummyData() {
   const today = new Date();
+
+  let flightSegment11 = new FlightSegment('06:00', 'Berlin (TXL)', '08:40', 'Lissabon (LIS)');
+  let flightSegment12 = new FlightSegment('19:00', 'Lissabon (LIS)', '21:50', 'Barcelona (BCN)');
+  let flightSegment21 = new FlightSegment('15:35', 'Barcelona (BCN)', '00:15', 'Marokko (CMN)');
+  let flightSegment31 = new FlightSegment('16:35', 'Marokko (CMN)', '13:40', 'Berlin (TXL)');
+
+  let flight1 = new Flight(today, today, 'TP531', 'TAP Air Portugal');
+  flight1.flightSchedule = [flightSegment11, flightSegment12];
+  let flight2 = new Flight(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 5), new Date(today.getFullYear(), today.getMonth(), today.getDate() + 6), 'TP531', 'TAP Air Portugal');
+  flight2.flightSchedule = [flightSegment21];
+  let flight3 = new Flight(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 9), new Date(today.getFullYear(), today.getMonth(), today.getDate() + 10), 'TP531', 'TAP Air Portugal');
+  flight3.flightSchedule = [flightSegment31];
+
+  let flightRoute = new FlightRoute([flight1, flight2, flight3], 1000);
 
   return [
     {
