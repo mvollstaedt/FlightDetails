@@ -2,7 +2,7 @@
   .home
     section.flight-request-form.section#main
       .container
-        .columns.is-variable.is-2.is-mobile.has-text-left(v-for="(flight, index) in currentFlightRoute")
+        .columns.is-variable.is-2.is-mobile.has-text-left(v-for="(flight, index) in inputFlightRoute")
           .column.is-1.is-relative
             .flight-no(:class="'flight-no-' + index")
               | {{ index + 1 }}
@@ -10,22 +10,23 @@
             b-field(:label="index === 0 ? 'From' : ''")
               b-autocomplete(
                 rounded
-                @input="onInputAutocomplete(flight.startLocation)"
-                v-model="flight.startLocation"
+                @input="onInputAutocomplete(flight.startLocation.input)"
+                v-model="flight.startLocation.input"
                 :data="filteredFlightDestinations"
                 placeholder="Start Destination"
-                @select="option => flight.startLocation = option"
-                class="input-location")
+                @select="option => onSelectLocation(flight.startLocation, option)"
+                class="input-location"
+                :id="'input-from-' + index")
                 template(slot="empty") No results found
           .column
             b-field(:label="index === 0 ? 'To' : ''")
               b-autocomplete(
               rounded
-              @input="onInputAutocomplete(flight.endLocation)"
-              v-model="flight.endLocation"
+              @input="onInputAutocomplete(flight.endLocation.input)"
+              v-model="flight.endLocation.input"
               :data="filteredFlightDestinations"
               placeholder="End Destination"
-              @select="option => flight.endLocation = option"
+              @select="option => onSelectLocation(flight.endLocation, option)"
               class="input-location")
                 template(slot="empty") No results found
           .column
@@ -38,11 +39,12 @@
                 v-model="flight.travelDate")
         .columns.is-mobile
           .column
-            button.button.is-medium.is-success.is-outlined.is-pulled-right(v-if="isPhoneSize || isTabletSize" @click="isFilterDrawerActive = true")
+            button.button.is-medium.is-success.is-outlined.is-pulled-right(v-if="isPhoneSize || isTabletSize" @click="onClickFilter")
               | Filter
           .column.is-narrow
             button.button.is-medium.is-success.is-pulled-right(@click="searchFlightRoutes")
               | Suchen
+
     .container
       .columns
         aside.section.menu.filter-options.column.is-3.has-text-left(v-show="!isTabletSize && !isPhoneSize" :class="!isTabletSize && !isPhoneSize ? 'is-desktop' : 'is-mobile'")
@@ -61,11 +63,14 @@
               | Travel Times
             .filter-option__body
               b-field(v-for="(travelTime, index) in filters.travelTimes" :key="index"
-              v-bind:label="currentFlightRoute[index].startLocation + ' - ' + currentFlightRoute[index].endLocation")
+              v-bind:label="searchedFlightRoute[index].startLocation.city + ' (' + searchedFlightRoute[index].startLocation.iata + ')' +' - ' + searchedFlightRoute[index].endLocation.city + ' (' + searchedFlightRoute[index].endLocation.iata + ')'")
                 vue-slider(ref="slider" v-model="filters.travelTimes[index]" v-bind="options" class="traveltimes-slider")
 
-        section.flight-route-results.section.column.is-offset-1-desktop(:class="!isTabletSize && !isPhoneSize ? 'is-desktop' : 'is-mobile'")
-          .columns.flight-route-result(v-if="filteredFlightRouteList.length > 0" v-for="flightRouteResult in filteredFlightRouteList")
+
+
+        section.flight-route-results.section.column.is-offset-1-desktop(v-if="filteredFlightRouteList.length" :class="!isTabletSize && !isPhoneSize ? 'is-desktop' : 'is-mobile'")
+          paginate(v-if="filteredFlightRouteList !== []" name="filteredFlightRouteList", :list="filteredFlightRouteList", class="paginate-list", tag="div")
+            .columns.flight-route-result(v-for="flightRouteResult in paginated('filteredFlightRouteList')")
               .column.is-9
                 .column
                   .columns.is-mobile.flight-info.is-vh-centered(v-for="flight in flightRouteResult.flights")
@@ -75,18 +80,21 @@
                       p.flight-duration {{ flight.travelTime + ' min' }}
                       .is-vh-centered
                         .flight-start
-                          .flight-location {{ flight.startLocation }}
+                          .flight-location {{ flight.startLocation.city }}
                           .flight-time {{ flight.startTime }}
                         i.flight-hr.fas.fa-plane
                         .flight-end
-                          .flight-location {{ flight.endLocation }}
+                          .flight-location {{ flight.endLocation.city }}
                           .flight-time {{ flight.endTime }}
               .column.is-3.is-vh-centered.is-vertically-stacked.flight-route-results__cta(:class="isPhoneSize ? 'is-mobile' : 'is-desktop'")
-                  .flight-route-price {{ flightRouteResult.price }}
-                  button.button.is-medium.is-primary(@click="isFlightModalActive = true") Check Out
-          .columns(v-if="filteredFlightRouteList.length <= 0")
-            .column
-              | Keine Suchergebnisse gefunden
+                .flight-route-price {{ flightRouteResult.price | currency}}
+                button.button.is-medium.is-primary(@click="openFlightRouteDetailsModal(flightRouteResult)") Details
+          paginate-links(for="filteredFlightRouteList" :async="true")
+        section.flight-route-results.section.column.is-offset-1-desktop(v-else)
+          .column
+            | Keine Suchergebnisse gefunden
+
+
     b-modal(:active.sync="isFlightModalActive")
       .modal-background
       .modal-card
@@ -94,30 +102,27 @@
           p.modal-card-title Flugrouten Details
         section.modal-card-body
           .trip-section
-            header.trip-section-header
-              h3.trip-section-title
-                | BAR - MAD
             section.trip-section-content
-              .columns(v-for="flightRouteResult in filteredFlightRouteList")
+              .columns
                 .column
-                  .columns.is-mobile.flight-segment-info.is-vertical-centered.is-multiline(v-for="flight in flightRouteResult.flights")
+                  .columns.is-mobile.flight-segment-info.is-vertical-centered.is-multiline(v-for="(flight, index) in flightRouteModalData.flights")
                     .column.is-2
                       .placeholder-logo(:class="isTabletSize || isPhoneSize ? 'is-mobile' : ''")
                     .column.is-relative.is-10
                       p.flight-duration {{ flight.travelTime + ' min' }}
                       .is-vh-centered
                         .flight-start
-                          .flight-location {{ flight.startLocation }}
+                          .flight-location {{ flight.startLocation.city }}
                           .flight-time {{ flight.startTime }}
                         i.flight-hr.fas.fa-plane
                         .flight-end
-                          .flight-location {{ flight.endLocation }}
+                          .flight-location {{ flight.endLocation.city }}
                           .flight-time {{ flight.endTime }}
-                    .column.is-offset-1.is-10
-                      .trip-section-waiting-time
-                        | Wartezeit: 10min
+                    .column.is-offset-1.is-10(v-if="index < flightRouteModalData.flights.length - 1")
+                      .trip-section-waiting-time {{ 'Aufenthaltsdauer: ' + getTimeOfStay(flightRouteModalData.flights, index) + ' Tage' }}
         footer.modal-card-foot.is-horizontal-centered
-          button.button.is-medium.is-primary(@click="saveFlight") Speichern
+          div(:class="loadSkyscannerScript")
+          div(data-skyscanner-widget='LocationWidget', data-origin-name="Miami", data-title="Buchen" data-locale='en-GB', data-params='colour:glen;location:Edinburgh;locationId:EDI', data-target="_blank")
 
     aside.nav-drawer-container.has-text-left(v-show="isPhoneSize || isTabletSize" :class="isFilterDrawerActive ? 'is-active' : ''")
       .filter-drawer
@@ -141,8 +146,8 @@
               | Travel Times
             .filter-option__body
               b-field(v-for="(travelTime, index) in filters.travelTimes" :key="index"
-              v-bind:label="currentFlightRoute[index].startLocation + ' - ' + currentFlightRoute[index].endLocation")
-                vue-slider(ref="slider" v-model="filters.travelTimes[index]", v-bind="options", class="traveltimes-slider")
+              v-bind:label="searchedFlightRoute[index].startLocation.city + ' (' + searchedFlightRoute[index].startLocation.iata + ')' +' - ' + searchedFlightRoute[index].endLocation.city + ' (' + searchedFlightRoute[index].endLocation.iata + ')'")
+                vue-slider(ref="slider" v-model="filters.travelTimes[index]" v-bind="options" class="traveltimes-slider", :show="drawerAnimFinished")
 
 </template>
 
@@ -153,6 +158,7 @@ import BField from 'buefy/src/components/field/Field.vue';
 import BAutocomplete from 'buefy/src/components/autocomplete/Autocomplete.vue';
 import BDatepicker from 'buefy/src/components/datepicker/Datepicker.vue';
 import VueSlider from 'vue-slider-component';
+import moment from 'moment';
 
 import { Flight, FlightRoute, FlightSegment } from '../lib/model';
 import * as Helpers from '../lib/helpers';
@@ -165,22 +171,26 @@ export default {
     BField,
     VueSlider,
   },
+
   data() {
+
     const today = new Date();
 
     return {
       name: '',
+
+      paginate: ['filteredFlightRouteList'],
+
+      autocompleteActive: false,
 
       SIZE_PHONE: 768,
       SIZE_TABLET: 1024,
       isTabletSize: false,
       isPhoneSize: false,
 
-      date: new Date(),
       minDate: new Date(today.getFullYear(), today.getMonth(), today.getDate()),
       maxDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 365),
 
-      value: ['00:00', '23:59'],
       options: {
         data: [],
         tooltipDir: 'bottom',
@@ -192,12 +202,12 @@ export default {
 
       flightRouteResults: [],
 
-      flightRouteDB: [],
+      // flight route which was searched for
+      searchedFlightRoute: [],
+      // flight route which is input in the form
+      inputFlightRoute: [],
 
-      destInputSelected: [],
-      startLocation: null,
-      endLocation: null,
-      currentFlightRoute: [],
+      flightRouteModalData: {},
 
       filters: {
         stopovers: ['0'],
@@ -208,18 +218,62 @@ export default {
         ],
       },
 
-      currentTrip: [],
 
       isFlightModalActive: false,
       isFilterDrawerActive: false,
+
+      drawerAnimFinished: false
     };
   },
   methods: {
+
+    onClickFilter() {
+      this.isFilterDrawerActive = true;
+      var self = this;
+      setTimeout(function() {
+        self.drawerAnimFinished = true;
+      }, 400);
+    },
+
+    openFlightRouteDetailsModal(flightRouteResult) {
+      this.flightRouteModalData = flightRouteResult;
+      this.isFlightModalActive = true;
+    },
+
+    getTimeOfStay(flights, index) {
+      if (flights[index + 1] === undefined) return 0;
+
+      let start = moment(flights[index].travelDate);
+      let end = moment(flights[index + 1].travelDate);
+
+      return Math.round(moment.duration(end.diff(start)).asDays());
+    },
+
     onInputAutocomplete(input) {
         this.filteredFlightDestinations = this.flightDestinationStrings.filter(option => option
         .toString()
         .toLowerCase()
         .indexOf(input.toLowerCase()) >= 0);
+    },
+
+    // update input data structure
+    onSelectLocation(locationObj, option) {
+      // must be adapted if displayed string changes
+      let iataStr = '';
+      let optionSplit = option.split('(');
+      if (optionSplit.length > 1) {
+        iataStr = optionSplit[1].split(')')[0].trim();
+      }
+      var cityStr = optionSplit[0].trim();
+
+
+      locationObj.input = option;
+      locationObj.city = cityStr;
+      locationObj.iata = iataStr;
+    },
+
+    onFocusAutocomplete(event) {
+
     },
 
     pinFlight(flightRouteResult) {
@@ -282,39 +336,50 @@ export default {
     },
 
     searchFlightRoutes() {
-      this.flightRouteResults = [];
-      let flightRouteSuitable = true;
-
-      for (let flightRoute of this.flightRouteDB) {
-        let i = 0;
-        for (let flight of flightRoute) {
-          if (flight._startDate === this.currentFlightRoute[index].travelDate
-            && flight.startLocation === this.currentFlightRoute[index].startLocation
-            && flight.endLocation === this.currentFlightRoute[index].endLocation) {
-            i += 1;
-            continue;
-          }
-          else {
-            flightRouteSuitable = false;
-            break;
-          }
-        }
-        if (flightRouteSuitable) {
-          this.flightRouteResults.add(flightRoute);
-        }
-
-        flightRouteSuitable = true;
-        i = 0;
-      }
+      // so that in filter section flight infos get synced
+      this.searchedFlightRoute = this.inputFlightRoute.slice();
+      this.flightRouteResults = Helpers.queryFlightRoutes(this.searchedFlightRoute)
     }
   },
   computed: {
 
+    loadSkyscannerScript() {
+
+      if (this.isFlightModalActive) {
+        let scriptExists = false;
+        let url = "https://widgets.skyscanner.net/widget-server/js/loader.js";
+        var scripts = document.getElementsByTagName('script');
+        for (var i = scripts.length; i--;) {
+          if (scripts[i].src == url) scriptExists = true;
+        }
+
+        if (scriptExists)
+          return;
+
+        let skyscWidget = document.createElement('script');
+        skyscWidget.setAttribute('src',"https://widgets.skyscanner.net/widget-server/js/loader.js");
+        document.head.appendChild(skyscWidget);
+      }
+
+    },
+
+    autocompleteClassObject() {
+      return {
+        'is-selected': this.autocompleteActive
+      }
+    },
+
     flightDestinationStrings() {
-      return this.flightDestinations.map(location => location.city + " (" + location.id + ")");
+        return this.flightDestinations.map(location => {
+          var displayName = location.city;
+          if (location.iata !== "\\N")
+            displayName += " (" + location.iata + ")";
+          return displayName
+        });
     },
 
     filteredFlightRouteList() {
+
       // if stopovers are changing
       let filteredList = this.flightRouteResults.filter((flightRouteResult) => {
         for (var flight of flightRouteResult.flights) {
@@ -342,16 +407,27 @@ export default {
 
       return filteredList;
     },
+
+    filteredFlightRouteListEmpty() {
+      return this.filteredFlightRouteList === [];
+    }
   },
+
+  filters: {
+    currency: (val) => {
+      return val + ' €';
+    },
+  },
+
   created() {
 
-    // fill in dummy data
-    this.currentFlightRoute = Helpers.getCurrentFlightRouteDummy();
-    this.flightRouteResults = Helpers.getFlightRouteDummyData();
-    this.flightRouteDB = Helpers.getFlightRouteDummyData();
-    this.flightDestinations = Helpers.getDestinationList();
+    this.flightDestinations = Helpers.getAirportList();
+
+    this.searchedFlightRoute = Helpers.getCurrentFlightRouteDummy();
+    this.inputFlightRoute = this.searchedFlightRoute.slice();
 
   },
+
   mounted() {
 
     // register event listeners for resize event
@@ -371,16 +447,6 @@ export default {
         time += `${(i - 1) / 2}:30`;
       }
       this.options.data[i] = time;
-    }
-
-    let i = 0;
-    for (var flight in this.currentFlightRoute) {
-      let flightInput = {
-        start: false,
-        end: false
-      };
-      this.destInputSelected[i] = flightInput;
-      i += 1;
     }
   },
 
@@ -510,7 +576,7 @@ body.no-scrolling
   height: 100%
   width: 100%
   background-color: aliceblue
-  z-index: 1000
+  z-index: 10000
   top: 0
   left: -100%
   transition: .4s ease
@@ -541,12 +607,13 @@ body.no-scrolling
   right: 0
   background-color: transparent
 
-.input-location
-  transition: .4s ease
-  &.is-active.is-mobile
-    z-index: 999
-    position: absolute
-    width: 80vw
+.paginate-links .left-arrow,
+.paginate-links .right-arrow
+  display: inline-flex
+  a
+    padding: .5rem 1rem
 
+.paginate-links .right-arrow
+  margin-left: -1.25rem
 
 </style>
