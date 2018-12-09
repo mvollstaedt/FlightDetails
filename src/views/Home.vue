@@ -1,5 +1,14 @@
 <template lang="pug">
   .home
+    .hero.is-primary
+      .hero-body
+        .container
+          h1.title Flugsuche
+            |
+            i.fas.fa-plane
+            span.is-pulled-right(style="font-size: 1.8rem;")
+              i.far.fa-bell
+          h2.subtitle Finde den passenden Flug
     section.flight-request-form.section#main
       .container
         .columns.is-variable.is-2.is-mobile.has-text-left(v-for="(flight, index) in inputFlightRoute")
@@ -66,11 +75,9 @@
               v-bind:label="searchedFlightRoute[index].startLocation.city + ' (' + searchedFlightRoute[index].startLocation.iata + ')' +' - ' + searchedFlightRoute[index].endLocation.city + ' (' + searchedFlightRoute[index].endLocation.iata + ')'")
                 vue-slider(ref="slider" v-model="filters.travelTimes[index]" v-bind="options" class="traveltimes-slider")
 
-
-
         section.flight-route-results.section.column.is-offset-1-desktop(v-if="filteredFlightRouteList.length" :class="!isTabletSize && !isPhoneSize ? 'is-desktop' : 'is-mobile'")
           paginate(v-if="filteredFlightRouteList !== []" name="filteredFlightRouteList", :list="filteredFlightRouteList", class="paginate-list", tag="div")
-            .columns.flight-route-result(v-for="flightRouteResult in paginated('filteredFlightRouteList')")
+            .columns.flight-route-result.has-box-shadow(v-for="flightRouteResult in paginated('filteredFlightRouteList')")
               .column.is-9
                 .column
                   .columns.is-mobile.flight-info.is-vh-centered(v-for="flight in flightRouteResult.flights")
@@ -93,7 +100,6 @@
         section.flight-route-results.section.column.is-offset-1-desktop(v-else)
           .column
             | Keine Suchergebnisse gefunden
-
 
     b-modal(:active.sync="isFlightModalActive")
       .modal-background
@@ -121,8 +127,7 @@
                     .column.is-offset-1.is-10(v-if="index < flightRouteModalData.flights.length - 1")
                       .trip-section-waiting-time {{ 'Aufenthaltsdauer: ' + getTimeOfStay(flightRouteModalData.flights, index) + ' Tage' }}
         footer.modal-card-foot.is-horizontal-centered
-          div(:class="loadSkyscannerScript")
-          div(data-skyscanner-widget='LocationWidget', data-origin-name="Miami", data-title="Buchen" data-locale='en-GB', data-params='colour:glen;location:Edinburgh;locationId:EDI', data-target="_blank")
+          button.button.is-primary(@click="$router.push({ name: 'booking', params: { flightRouteData: flightRouteModalData} })") Buchen
 
     aside.nav-drawer-container.has-text-left(v-show="isPhoneSize || isTabletSize" :class="isFilterDrawerActive ? 'is-active' : ''")
       .filter-drawer
@@ -238,6 +243,7 @@ export default {
     openFlightRouteDetailsModal(flightRouteResult) {
       this.flightRouteModalData = flightRouteResult;
       this.isFlightModalActive = true;
+      console.log(flightRouteResult.toString())
     },
 
     getTimeOfStay(flights, index) {
@@ -343,32 +349,6 @@ export default {
   },
   computed: {
 
-    loadSkyscannerScript() {
-
-      if (this.isFlightModalActive) {
-        let scriptExists = false;
-        let url = "https://widgets.skyscanner.net/widget-server/js/loader.js";
-        var scripts = document.getElementsByTagName('script');
-        for (var i = scripts.length; i--;) {
-          if (scripts[i].src == url) scriptExists = true;
-        }
-
-        if (scriptExists)
-          return;
-
-        let skyscWidget = document.createElement('script');
-        skyscWidget.setAttribute('src',"https://widgets.skyscanner.net/widget-server/js/loader.js");
-        document.head.appendChild(skyscWidget);
-      }
-
-    },
-
-    autocompleteClassObject() {
-      return {
-        'is-selected': this.autocompleteActive
-      }
-    },
-
     flightDestinationStrings() {
         return this.flightDestinations.map(location => {
           var displayName = location.city;
@@ -456,6 +436,14 @@ export default {
 };
 </script>
 <style lang="sass">
+#nav
+  padding: 30px
+  a
+    font-weight: bold
+    color: #2c3e50
+    &.router-link-exact-active
+      color: #42b983
+
 .flight-no
   position: absolute
   text-align: center
@@ -506,6 +494,8 @@ export default {
 .flight-route-result
   margin-bottom: 2rem !important
   border-radius: 5px
+
+.has-box-shadow
   box-shadow: 0px 9px 33px -9px rgba(0,0,0,0.75)
 
 .flight-route-results__cta
