@@ -25,11 +25,11 @@
                         p.flight-duration {{ flight.travelTime + ' min' }}
                         .is-vh-centered
                           .flight-start
-                            .flight-location {{ flight.startLocation.city }}
+                            .flight-location {{ flight.startLocation.city  + ' (' + flight.startLocation.iata + ')'}}
                             .flight-time {{ flight.startTime }}
                           i.flight-hr.fas.fa-plane
                           .flight-end
-                            .flight-location {{ flight.endLocation.city }}
+                            .flight-location {{ flight.endLocation.city  + ' (' + flight.endLocation.iata + ')'}}
                             .flight-time {{ flight.endTime }}
                       .column.is-offset-1.is-10(v-if="index < flightRouteData.flights.length - 1")
                         .trip-section-waiting-time {{ 'Aufenthaltsdauer: ' + getTimeOfStay(flightRouteData.flights, index) + ' Tage' }}
@@ -174,7 +174,7 @@
                   p.column.is-6-mobile(v-else)
                     | {{ val }}
               hr
-              .final-step__price {{ '= ' + flightRouteData.price }}
+              .final-step__price {{ '= ' + flightRouteData.price + " €"}}
         template(slot='footer', slot-scope='props')
           .wizard-footer-left
             wizard-button(v-if='props.activeTabIndex > 0 && !props.isLastStep', :style='props.fillButtonStyle', @click.native='props.prevTab()') Previous
@@ -200,7 +200,7 @@ export default {
       required: false,
       default() {
         return {
-          price: '400 €',
+          price: '400',
           pinned: false,
           flights: [
             {

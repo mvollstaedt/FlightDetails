@@ -26,6 +26,10 @@ export class Flight {
     this._airline = airline;
 
     this._cabinClass = 'Economy';
+    this._flightSegments = [];
+
+    this._travelDate = new Date();
+    this._travelTime = 0;
   }
 
   set cabinClass(cabinClass) {
@@ -36,36 +40,86 @@ export class Flight {
     this._flightSegments = flightSegments;
   }
 
+  get startDate() {
+    return this._startDate;
+  }
+
+  get endDate() {
+    return this._endDate;
+  }
+
+  get flightNo() {
+    return this._flightNo;
+  }
+
+  get airline() {
+    return this._airline;
+  }
+
+  get cabinClass() {
+    return this._cabinClass;
+  }
+
   get startLocation() {
-    return this._flightSegments[0].startLocation;
+    return this._flightSegments[0]._startLocation;
   }
 
   get endLocation() {
-    return this._flightSegments[this._flightSegments.length-1].endLocation;
+    return this._flightSegments[this._flightSegments.length-1]._endLocation;
   }
 
-  get flightDuration() {
-    let duration = (this._endDate - this._startDate) / 1000 / 60;
-    if (duration <= 0) {
-      duration = 0;
-      console.log(`Flight Duration of flight ${this._flightNo} was <= 0`);
-    }
-    return duration;
+  get travelTime() {
+    return this._travelTime;
+  }
+
+  set travelTime(travelTime) {
+    this._travelTime = travelTime;
+  }
+
+  get travelDate() {
+    return this._travelDate;
+  }
+
+  set travelDate(travelDate) {
+    this._travelDate = travelDate;
   }
 
   get stopoverCount() {
-    let count = this._flightSegments.length;
+    let count = this._flightSegments.length - 1;
     if (count < 0) {
       count = 0;
-      console.log(`Stopover count of flight ${this._flightNo}was somehow < 0`);
     }
     return count;
+  }
+
+  addFlightSegment(flightSegment) {
+    this._flightSegments.push(flightSegment);
   }
 }
 
 export class FlightRoute {
-  constructor(flights, price) {
+  constructor(flights = [], price = 0) {
     this._flights = flights;
     this._price = price;
+  }
+
+  set flights(flights) {
+    this._flights = flights;
+  }
+
+  get flights() {
+    return this._flights;
+  }
+
+  addFlight(flight) {
+    this._flights.push(flight);
+  }
+
+  set price(price) {
+    this._price = price;
+  }
+
+  get price() {
+    return this._price;
   }
 }

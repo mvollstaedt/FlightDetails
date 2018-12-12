@@ -87,11 +87,11 @@
                       p.flight-duration {{ flight.travelTime + ' min' }}
                       .is-vh-centered
                         .flight-start
-                          .flight-location {{ flight.startLocation.city }}
+                          .flight-location {{ flight.startLocation.city + ' (' + flight.startLocation.iata + ')'}}
                           .flight-time {{ flight.startTime }}
                         i.flight-hr.fas.fa-plane
                         .flight-end
-                          .flight-location {{ flight.endLocation.city }}
+                          .flight-location {{ flight.endLocation.city + ' (' + flight.endLocation.iata + ')'}}
                           .flight-time {{ flight.endTime }}
               .column.is-3.is-vh-centered.is-vertically-stacked.flight-route-results__cta(:class="isPhoneSize ? 'is-mobile' : 'is-desktop'")
                 .flight-route-price {{ flightRouteResult.price | currency}}
@@ -227,7 +227,9 @@ export default {
       isFlightModalActive: false,
       isFilterDrawerActive: false,
 
-      drawerAnimFinished: false
+      drawerAnimFinished: false,
+
+      tripSections: {},
     };
   },
   methods: {
@@ -278,26 +280,8 @@ export default {
       locationObj.iata = iataStr;
     },
 
-    onFocusAutocomplete(event) {
-
-    },
-
-    pinFlight(flightRouteResult) {
-      let flightRouteToPin = flightRouteResult;
-
-      for (const flightRoute of this.flightRouteResults) {
-        flightRoute.pinned = false;
-      }
-
-      if (flightRouteToPin.pinned) {
-        this.$toast.open('Flight Route was unpinned.');
-        flightRouteToPin.pinned = false;
-      } else {
-        this.$toast.open('Flight Route was pinned.');
-        flightRouteToPin.pinned = true;
-      }
-
-      flightRouteResult = flightRouteToPin
+    onUpdateTripSections(tripSectionsData) {
+      this.tripSections = tripSectionsData;
     },
 
     // check if time is in certain time range
@@ -310,11 +294,6 @@ export default {
       const travelDate = new Date(2012, 10, 2, parseInt(timeTemp[0], 10), parseInt(timeTemp[1]), 10);
 
       return startDate <= travelDate && endDate >= travelDate;
-    },
-
-    // update flight route if other comp is changing it
-    updateFlightRoute(flightRoute) {
-      // TODO
     },
 
     saveFlight(event) {
@@ -344,7 +323,32 @@ export default {
     searchFlightRoutes() {
       // so that in filter section flight infos get synced
       this.searchedFlightRoute = this.inputFlightRoute.slice();
-      this.flightRouteResults = Helpers.queryFlightRoutes(this.searchedFlightRoute)
+
+      // retrieve JSON data
+      let resultData = JSON.parse(Helpers.queryFlightRoutes(this.searchedFlightRoute));
+
+      // save data in js class implementation for consistency
+      let flightRouteResultsTmp = [];
+
+      for (const result of resultData){
+        let flightRouteTmp = new FlightRoute();
+        flightRouteTmp.price = result.price;
+
+        for (const flight of result.flights) {
+          let flightTmp = new Flight(flight.startTime, flight.endTime, flight.flightNo, flight.airline);
+          flightTmp.travelTime = flight.travelTime;
+          flightTmp.travelDate = flight.travelDate;
+
+          let flightSegmentTmp = new FlightSegment(flight.startTime, flight.startLocation, flight.endTime, flight.endLocation);
+          flightTmp.addFlightSegment(flightSegmentTmp);
+
+          flightRouteTmp.addFlight(flightTmp);
+        }
+
+        flightRouteResultsTmp.push(flightRouteTmp);
+      }
+
+      this.flightRouteResults = flightRouteResultsTmp;
     }
   },
   computed: {
@@ -363,7 +367,7 @@ export default {
       // if stopovers are changing
       let filteredList = this.flightRouteResults.filter((flightRouteResult) => {
         for (var flight of flightRouteResult.flights) {
-          if (this.filters.stopovers.some(val => val === flight.stopovers.toString())) {
+          if (this.filters.stopovers.some(val => val === flight.stopoverCount.toString())) {
             continue;
           }
           return false;
@@ -375,8 +379,8 @@ export default {
       filteredList = filteredList.filter((flightRouteResult) => {
         let i = 0;
         for (const flight of flightRouteResult.flights) {
-          if (this.timeInTimespan(flight.startTime, this.filters.travelTimes[i])
-              && this.timeInTimespan(flight.endTime, this.filters.travelTimes[i])) {
+          if (this.timeInTimespan(flight.startDate, this.filters.travelTimes[i])
+              && this.timeInTimespan(flight.endDate, this.filters.travelTimes[i])) {
             i += 1;
             continue;
           }
