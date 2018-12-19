@@ -20,17 +20,17 @@
                   .column
                     .columns.is-mobile.flight-segment-info.is-vertical-centered.is-multiline(v-for="(flight, index) in flightRouteData.flights")
                       .column.is-2
-                        .placeholder-logo(:class="isTabletSize || isPhoneSize ? 'is-mobile' : ''")
+                        .airline-logo.airline-logo-overview(:class="isTabletSize || isPhoneSize ? 'is-mobile' : ''") {{ flight.airline.callsign }}
                       .column.is-relative.is-10
                         p.flight-duration {{ flight.travelTime + ' min' }}
                         .is-vh-centered
                           .flight-start
                             .flight-location {{ flight.startLocation.city  + ' (' + flight.startLocation.iata + ')'}}
-                            .flight-time {{ flight.startTime }}
+                            .flight-time {{ flight.startDate }}
                           i.flight-hr.fas.fa-plane
                           .flight-end
                             .flight-location {{ flight.endLocation.city  + ' (' + flight.endLocation.iata + ')'}}
-                            .flight-time {{ flight.endTime }}
+                            .flight-time {{ flight.endDate }}
                       .column.is-offset-1.is-10(v-if="index < flightRouteData.flights.length - 1")
                         .trip-section-waiting-time {{ 'Aufenthaltsdauer: ' + getTimeOfStay(flightRouteData.flights, index) + ' Tage' }}
           section.section.further-options-content
@@ -180,7 +180,7 @@
             wizard-button(v-if='props.activeTabIndex > 0 && !props.isLastStep', :style='props.fillButtonStyle', @click.native='props.prevTab()') Previous
           .wizard-footer-right
             wizard-button(v-if='!props.isLastStep', @click.native='props.nextTab()', :style='props.fillButtonStyle') Next
-            wizard-button.finish-button(v-else='', @click.native="onFinishBooking", :style='props.fillButtonStyle') {{props.isLastStep ? 'Done' : 'Next'}}
+            wizard-button.finish-button(v-else='', @click.native="onFinishBooking", :style='props.fillButtonStyle') {{props.isLastStep ? 'Buy' : 'Next'}}
 
 </template>
 
@@ -199,68 +199,16 @@ export default {
       type: Object,
       required: false,
       default() {
-        return {
-          price: '400',
-          pinned: false,
-          flights: [
-            {
-              startLocation: {
-                city: 'Berlin',
-                iata: 'SXF',
-                input: 'Berlin (SXF)',
-              },
-              endLocation: {
-                city: 'Barcelona',
-                iata: 'BCN',
-                input: 'Barcelona (BCN)',
-              },
-              startTime: '06:30',
-              endTime: '09:30',
-              travelTime: '180',
-              travelDate: today,
-              cabinClass: 'Economy',
-              stopovers: 0,
-            },
-            {
-              startLocation: {
-                city: 'Barcelona',
-                iata: 'BCN',
-                input: 'Barcelona (BCN)',
-              },
-              endLocation: {
-                city: 'Madrid',
-                iata: 'MAD',
-                input: 'Madrid (MAD)',
-              },
-              startTime: '10:00',
-              endTime: '11:00',
-              travelTime: '60',
-              travelDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 5),
-              cabinClass: 'Economy',
-              stopovers: 0,
-            },
-            {
-              endLocation: {
-                city: 'Berlin',
-                iata: 'SXF',
-                input: 'Berlin (SXF)',
-              },
-              startLocation: {
-                city: 'Madrid',
-                iata: 'MAD',
-                input: 'Madrid (MAD)',
-              },
-              startTime: '12:00',
-              endTime: '15:00',
-              travelTime: '180',
-              travelDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 10),
-              cabinClass: 'Economy',
-              stopovers: 0,
-            },
-          ],
-        };
+        return {};
       },
     },
+    tripSectionsData: {
+      type: Object,
+      required: false,
+      default() {
+        return {};
+      }
+    }
   },
   data() {
     return {
@@ -348,6 +296,16 @@ export default {
     },
   },
   methods: {
+    onUpdateTripSections(tripSectionsData) {
+      this.onAbortBooking();
+    },
+    onAbortBooking() {
+      this.$toast.open({
+        message: 'Booking was aborted due to trip information changes in another component.',
+        type: 'is-warning',
+      });
+      this.$router.push({ name: 'home' });
+    },
     isLastStep() {
       if (this.$refs.wizard) {
         return this.$refs.wizard.isLastStep;
@@ -385,7 +343,6 @@ export default {
       }
     },
     onFinishBooking(event) {
-      // TODO: emit data to other component
       this.$toast.open({
         message: 'Booking was successful.',
         type: 'is-success',

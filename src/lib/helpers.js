@@ -43,6 +43,58 @@ export function getAirportList() {
   ]
  */
 
+export function getTripSectionsDataDummy() {
+  const today = new Date();
+
+  return {
+    startDate: today,
+    endDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 10),
+    sections: [
+      {
+        location: {
+          name: "Madrid",
+        },
+        startDate: today,
+        endDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 6),
+      },
+      {
+        location: {
+          name: "Barcelona",
+        },
+        startDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 6),
+        endDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 8),
+      },
+      {
+        location: {
+          name: "Bilbao",
+        },
+        startDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 8),
+        endDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 10),
+      },
+    ]
+
+  }
+}
+
+export function getTripSectionsInitialData() {
+  const today = new Date();
+
+  return {
+    startDate: today,
+    endDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 10),
+    sections: [
+      {
+        location: {
+          name: "Madrid",
+        },
+        startDate: today,
+        endDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 6),
+      }
+    ]
+
+  }
+}
+
 export function getCurrentFlightRouteDummy() {
   const today = new Date();
 
@@ -114,13 +166,19 @@ export function queryFlightRoutes(flightRouteParams) {
 
         const randTravelTime = getRandTravelTime(60, 180);
 
-        if (isNaN(moment(depTime, 'hh:mm'))) console.log(depTime);
+        let startTimeAsMoment = moment({
+          years: flightQuery.travelDate.getFullYear(),
+          months: flightQuery.travelDate.getMonth(),
+          days: flightQuery.travelDate.getDay(),
+          hours: depTime.split(":")[0],
+          minutes: depTime.split(":")[1]
+        });
 
         flights[i].push({
           startLocation: { city: srcAirport.city, iata: srcAirport.iata, input: `${srcAirport.city} (${srcAirport.iata})` },
           endLocation: { city: destAirport.city, iata: destAirport.iata, input: `${destAirport.city} (${destAirport.iata})` },
-          startTime: depTime,
-          endTime: moment(depTime, 'hh:mm').add(randTravelTime, 'minute').format('hh:mm'),
+          startTime: moment(startTimeAsMoment).format('hh:mm A'),
+          endTime: moment(startTimeAsMoment).add(randTravelTime, 'minute').format('hh:mm A'),
           travelTime: randTravelTime,
           travelDate: flightQuery.travelDate,
           cabinClass: 'Economy',
@@ -154,3 +212,29 @@ export function queryFlightRoutes(flightRouteParams) {
 
   return JSON.stringify(flightAlternatives);
 }
+
+export function isEmpty(obj) {
+
+  // null and undefined are "empty"
+  if (obj == null) return true;
+
+  // Assume if it has a length property with a non-zero value
+  // that that property is correct.
+  if (obj.length > 0)    return false;
+  if (obj.length === 0)  return true;
+
+  // If it isn't an object at this point
+  // it is empty, but it can't be anything *but* empty
+  // Is it empty?  Depends on your application.
+  if (typeof obj !== "object") return true;
+
+  // Otherwise, does it have any properties of its own?
+  // Note that this doesn't handle
+  // toString and valueOf enumeration bugs in IE < 9
+  for (var key in obj) {
+    if (hasOwnProperty.call(obj, key)) return false;
+  }
+
+  return true;
+}
+

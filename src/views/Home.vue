@@ -56,7 +56,7 @@
 
     .container
       .columns
-        aside.section.menu.filter-options.column.is-3.has-text-left(v-show="!isTabletSize && !isPhoneSize" :class="!isTabletSize && !isPhoneSize ? 'is-desktop' : 'is-mobile'")
+        aside.section.menu.filter-options.column.is-3.has-text-left(v-if="searchedFlightRoute.length > 0 && (!isTabletSize && !isPhoneSize)" :class="!isTabletSize && !isPhoneSize ? 'is-desktop' : 'is-mobile'")
           .filter-option
             p.menu-label.filter-option__header
               | Stopovers
@@ -72,27 +72,28 @@
               | Travel Times
             .filter-option__body
               b-field(v-for="(travelTime, index) in filters.travelTimes" :key="index"
-              v-bind:label="searchedFlightRoute[index].startLocation.city + ' (' + searchedFlightRoute[index].startLocation.iata + ')' +' - ' + searchedFlightRoute[index].endLocation.city + ' (' + searchedFlightRoute[index].endLocation.iata + ')'")
+              v-bind:label="searchedFlightRoute[index].startLocation.city + ' - ' + searchedFlightRoute[index].endLocation.city")
                 vue-slider(ref="slider" v-model="filters.travelTimes[index]" v-bind="options" class="traveltimes-slider")
 
         section.flight-route-results.section.column.is-offset-1-desktop(v-if="filteredFlightRouteList.length" :class="!isTabletSize && !isPhoneSize ? 'is-desktop' : 'is-mobile'")
-          paginate(v-if="filteredFlightRouteList !== []" name="filteredFlightRouteList", :list="filteredFlightRouteList", class="paginate-list", tag="div")
+          paginate(v-if="filteredFlightRouteList !== []" name="filteredFlightRouteList", :list="filteredFlightRouteList", class="paginate-list", tag="div", :refreshCurrentPage="false")
             .columns.flight-route-result.has-box-shadow(v-for="flightRouteResult in paginated('filteredFlightRouteList')")
               .column.is-9
                 .column
                   .columns.is-mobile.flight-info.is-vh-centered(v-for="flight in flightRouteResult.flights")
-                    .column.is-2
-                      .placeholder-logo(:class="isTabletSize || isPhoneSize ? 'is-mobile' : ''")
+                    .column.is-3
+                      .airline-logo.airline-logo-overview(:class="isTabletSize || isPhoneSize ? 'is-mobile' : ''") {{ flight.airline.callsign }}
                     .column.is-7-desktop.is-relative
                       p.flight-duration {{ flight.travelTime + ' min' }}
                       .is-vh-centered
                         .flight-start
                           .flight-location {{ flight.startLocation.city + ' (' + flight.startLocation.iata + ')'}}
-                          .flight-time {{ flight.startTime }}
+                          .flight-time {{ flight.startDate }}
                         i.flight-hr.fas.fa-plane
                         .flight-end
                           .flight-location {{ flight.endLocation.city + ' (' + flight.endLocation.iata + ')'}}
-                          .flight-time {{ flight.endTime }}
+                          .flight-time {{ flight.endDate }}
+                            sup(v-if="!isSameDay(flight.startDate, flight.travelTime, flight.travelDate)") +1
               .column.is-3.is-vh-centered.is-vertically-stacked.flight-route-results__cta(:class="isPhoneSize ? 'is-mobile' : 'is-desktop'")
                 .flight-route-price {{ flightRouteResult.price | currency}}
                 button.button.is-medium.is-primary(@click="openFlightRouteDetailsModal(flightRouteResult)") Details
@@ -112,47 +113,26 @@
               .columns
                 .column
                   .columns.is-mobile.flight-segment-info.is-vertical-centered.is-multiline(v-for="(flight, index) in flightRouteModalData.flights")
-                    .column.is-2
-                      .placeholder-logo(:class="isTabletSize || isPhoneSize ? 'is-mobile' : ''")
-                    .column.is-relative.is-10
+                    .column.is-12.has-text-left
+                      .flight-date {{ flight.travelDate | momentjs('DD.MM.YYYY') }}
+                    .column.is-3.has-text-left
+                      .airline-logo.airline-logo-overview(:class="isTabletSize || isPhoneSize ? 'is-mobile' : ''") {{ flight.airline.callsign }}
+                    .column.is-relative.is-9
                       p.flight-duration {{ flight.travelTime + ' min' }}
                       .is-vh-centered
                         .flight-start
                           .flight-location {{ flight.startLocation.city }}
-                          .flight-time {{ flight.startTime }}
+                          .flight-time {{ flight.startDate }}
                         i.flight-hr.fas.fa-plane
                         .flight-end
                           .flight-location {{ flight.endLocation.city }}
-                          .flight-time {{ flight.endTime }}
+                          .flight-time {{ flight.endDate }}
                     .column.is-offset-1.is-10(v-if="index < flightRouteModalData.flights.length - 1")
                       .trip-section-waiting-time {{ 'Aufenthaltsdauer: ' + getTimeOfStay(flightRouteModalData.flights, index) + ' Tage' }}
         footer.modal-card-foot.is-horizontal-centered
-          button.button.is-primary(@click="$router.push({ name: 'booking', params: { flightRouteData: flightRouteModalData} })") Buchen
+          button.button.is-primary(@click="onOpenBookingWizard(flightRouteModalData)")
+            | Buchen für {{ flightRouteModalData.price | currency }}
 
-    aside.nav-drawer-container.has-text-left(v-show="isPhoneSize || isTabletSize" :class="isFilterDrawerActive ? 'is-active' : ''")
-      .filter-drawer
-        .filter-drawer-header
-          h3.filter-drawer-title
-            | Filter
-          button.button.is-outlined.filter-drawer-btn-close(@click="isFilterDrawerActive = false") Fertig
-        .filter-drawer-content
-          .filter-option
-            p.menu-label.filter-option__header
-              | Stopovers
-            .filter-option__body
-              b-field
-                b-checkbox(v-model="filters.stopovers" native-value="0") 0 Stopovers
-              b-field
-                b-checkbox(v-model="filters.stopovers" native-value="1") 1 Stopover
-              b-field
-              b-checkbox(v-model="filters.stopovers" native-value="2") 2 Stopovers
-          .filter-option
-            p.menu-label.filter-option__header
-              | Travel Times
-            .filter-option__body
-              b-field(v-for="(travelTime, index) in filters.travelTimes" :key="index"
-              v-bind:label="searchedFlightRoute[index].startLocation.city + ' (' + searchedFlightRoute[index].startLocation.iata + ')' +' - ' + searchedFlightRoute[index].endLocation.city + ' (' + searchedFlightRoute[index].endLocation.iata + ')'")
-                vue-slider(ref="slider" v-model="filters.travelTimes[index]" v-bind="options" class="traveltimes-slider", :show="drawerAnimFinished")
 
 </template>
 
@@ -167,6 +147,7 @@ import moment from 'moment';
 
 import { Flight, FlightRoute, FlightSegment } from '../lib/model';
 import * as Helpers from '../lib/helpers';
+import { isEmpty } from '../lib/helpers';
 
 export default {
   name: 'home',
@@ -201,6 +182,13 @@ export default {
         tooltipDir: 'bottom',
       },
 
+      // used as default start/end location of the trip
+      defaultGermanAirport: {
+        city: "Berlin",
+        iata: "SXF",
+        input: "Berlin (SXF)"
+      },
+
       flightDestinations: [],
 
       filteredFlightDestinations: [],
@@ -216,11 +204,7 @@ export default {
 
       filters: {
         stopovers: ['0'],
-        travelTimes: [
-          ['00:00', '23:59'],
-          ['00:00', '23:59'],
-          ['00:00', '23:59'],
-        ],
+        travelTimes: [],
       },
 
 
@@ -234,6 +218,21 @@ export default {
   },
   methods: {
 
+    onOpenBookingWizard(flightRouteData) {
+      var self = this;
+      this.$router.push({ name: 'booking', params: { flightRouteData, tripSectionsData: self.tripSectionsData } })
+    },
+
+    isSameDay(startTimeStr, travelTime, travelDateStr) {
+      let startTimeMoment = moment(startTimeStr, 'hh:mm A');
+      let travelDate = new Date(travelDateStr);
+      let endDateMoment;
+
+      let startDateMoment = moment({ years: travelDate.getFullYear(), months: travelDate.getMonth(), days: travelDate.getDay(), hours: startTimeMoment.hours(), minutes: startTimeMoment.minutes()});
+      endDateMoment = moment(startDateMoment).add(travelTime, 'minutes');
+      return startDateMoment.isSame(endDateMoment, 'days');
+    },
+
     onClickFilter() {
       this.isFilterDrawerActive = true;
       var self = this;
@@ -245,7 +244,6 @@ export default {
     openFlightRouteDetailsModal(flightRouteResult) {
       this.flightRouteModalData = flightRouteResult;
       this.isFlightModalActive = true;
-      console.log(flightRouteResult.toString())
     },
 
     getTimeOfStay(flights, index) {
@@ -280,8 +278,102 @@ export default {
       locationObj.iata = iataStr;
     },
 
+    // update ui with newly retrieved trip sections data
     onUpdateTripSections(tripSectionsData) {
+      let searchSection;
       this.tripSections = tripSectionsData;
+      var self = this;
+
+      let searchData = [];
+
+      var i = 0;
+
+      // update flight input mask data
+      for (const tripSection of tripSectionsData.sections) {
+
+        switch(i) {
+          case 0:
+            let exampleIata = "";
+            this.flightDestinations.find(location => {
+              if(location.city === tripSection.location.name) {
+                exampleIata = location.iata;
+                return true;
+              }
+            });
+
+            searchSection = {
+              startLocation: {
+                ...this.defaultGermanAirport
+              },
+              endLocation: {
+                city: tripSection.location.name,
+                iata: exampleIata,
+                input: self.getDisplayedInputDstStr(tripSection.location.name, exampleIata)
+              },
+              travelDate: tripSection.startDate
+            };
+
+            break;
+          default:
+            let exampleIataEnd = "";
+            this.flightDestinations.find(location => {
+              if(location.city === tripSection.location.name) {
+                exampleIataEnd = location.iata;
+                return true;
+              }
+            });
+
+            searchSection = {
+              startLocation: {
+                city: tripSectionsData.sections[i - 1].location.name,
+                iata: searchData[searchData.length - 1].endLocation.iata,
+                input: searchData[searchData.length - 1].endLocation.input
+              },
+              endLocation: {
+                city: tripSection.location.name,
+                iata: exampleIataEnd,
+                input: self.getDisplayedInputDstStr(tripSection.location.name, exampleIataEnd)
+              },
+              travelDate: tripSection.startDate
+            };
+            break;
+        }
+        searchData.push(searchSection);
+        i++;
+      }
+
+      searchSection = {
+        startLocation: {
+          city: tripSectionsData.sections[tripSectionsData.sections.length - 1].location.name,
+          iata: searchData[searchData.length - 1].endLocation.iata,
+          input: searchData[searchData.length - 1].endLocation.input,
+        },
+        endLocation: {
+          ...this.defaultGermanAirport
+        },
+        travelDate: tripSectionsData.endDate,
+      };
+
+      searchData.push(searchSection);
+
+      this.updateFilterData(searchData);
+      this.inputFlightRoute = searchData;
+      this.searchFlightRoutes();
+
+      this.$toast.open({
+        message: 'Flights were updated due to changes in another component',
+        type: 'is-warning',
+        duration: 4000
+      })
+    },
+
+    updateFilterData(searchData) {
+      let travelTimes = [];
+      let travelTime = ["00:00", "23:59"];
+      for (var i = 0; i < searchData.length; i++) {
+        travelTimes.push(travelTime);
+      }
+      this.filters.travelTimes = travelTimes;
     },
 
     // check if time is in certain time range
@@ -320,7 +412,22 @@ export default {
       }
     },
 
+    getDisplayedInputDstStr(city, iata) {
+      if (iata === "") {
+        return city;
+      }
+      return `${city} (${iata})`;
+    },
+
     searchFlightRoutes() {
+      var self = this;
+
+      // to prevent input errors
+      for (var inputRow of this.inputFlightRoute) {
+        inputRow.startLocation.input = self.getDisplayedInputDstStr(inputRow.startLocation.city, inputRow.startLocation.iata);
+        inputRow.endLocation.input = self.getDisplayedInputDstStr(inputRow.endLocation.city, inputRow.endLocation.iata);
+      }
+
       // so that in filter section flight infos get synced
       this.searchedFlightRoute = this.inputFlightRoute.slice();
 
@@ -356,7 +463,7 @@ export default {
     flightDestinationStrings() {
         return this.flightDestinations.map(location => {
           var displayName = location.city;
-          if (location.iata !== "\\N")
+          if (location.iata !== "")
             displayName += " (" + location.iata + ")";
           return displayName
         });
@@ -401,14 +508,19 @@ export default {
     currency: (val) => {
       return val + ' €';
     },
+    momentjs: (val, format) => {
+      return moment(val).format(format);
+    }
   },
 
   created() {
 
     this.flightDestinations = Helpers.getAirportList();
 
-    this.searchedFlightRoute = Helpers.getCurrentFlightRouteDummy();
-    this.inputFlightRoute = this.searchedFlightRoute.slice();
+    this.onUpdateTripSections(Helpers.getTripSectionsInitialData())
+    //this.onUpdateTripSections(Helpers.getTripSectionsDataDummy())
+    //this.searchedFlightRoute = Helpers.getCurrentFlightRouteDummy();
+    //this.inputFlightRoute = this.searchedFlightRoute.slice();
 
   },
 
@@ -537,13 +649,17 @@ export default {
 .is-relative
   position: relative
 
-.placeholder-logo
-  width: 70px
-  height: 70px
-  background-color: #ffb5d8
-  &.is-mobile
-    width: 50px
-    height: 50px
+.airline-logo
+  background-color: #d0ffcf
+  padding: .5rem .7rem
+  word-break: break-word
+  font-weight: bold
+  display: inline-block
+
+.airline-logo-overview
+  font-size: .5rem
+  text-transform: none
+  line-height: .8rem
 
 .filter-options
   &.is-desktop
