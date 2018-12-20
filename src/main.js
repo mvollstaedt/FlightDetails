@@ -7,7 +7,6 @@ import VuePaginate from 'vue-paginate';
 import Vuelidate from 'vuelidate';
 
 import VueFormWizard from 'vue-form-wizard';
-import store from './store';
 import App from './App.vue';
 import 'vue-form-wizard/dist/vue-form-wizard.min.css';
 
@@ -34,10 +33,9 @@ const router = new Router({
       path: '/booking',
       name: 'booking',
       component: Booking,
-      props: true,
       // redirect if no flight route was selected
       beforeEnter: (to, from, next) => {
-        if (isEmpty(to.params)) next({ name: 'home' });
+        if (!localStorage.getItem("flightRouteData")) next({ name: 'home' });
         next();
       },
     },
@@ -48,6 +46,5 @@ Vue.config.productionTip = false;
 
 new Vue({
   router,
-  store,
   render: h => h(App),
 }).$mount('#app');

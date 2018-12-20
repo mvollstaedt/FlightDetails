@@ -1,8 +1,8 @@
 /* eslint-disable import/prefer-default-export,no-restricted-syntax,no-trailing-spaces,no-console */
 import moment from 'moment';
-import { Flight, FlightSegment, FlightRoute } from './model';
 import airports from '../data/eu_airports.json';
 import airlines from '../data/eu_airlines';
+import { Flight, FlightRoute, FlightSegment } from './model';
 
 function getRandTravelTime(min, max) {
   const randNo = Math.random() * (+max - +min) + +min;
@@ -15,8 +15,8 @@ function genPrice(travelTime) {
   return Math.round(travelTime / 60 * 150);
 }
 
-function genFlightNo(callsign, count = 5) {
-  let flightNo = callsign;
+function genFlightNo(icao, count = 5) {
+  let flightNo = icao;
   const digits = '0123456789';
   const countOfPositions = count;
 
@@ -31,51 +31,7 @@ export function getAirportList() {
   return airports;
 }
 
-/*
-  Format:
-  flightRouteParams = [
-    [
-      startLocation: '',
-      endLocation: '',
-      travelDate: Date,
-    ],
-    ...
-  ]
- */
-
-export function getTripSectionsDataDummy() {
-  const today = new Date();
-
-  return {
-    startDate: today,
-    endDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 10),
-    sections: [
-      {
-        location: {
-          name: "Madrid",
-        },
-        startDate: today,
-        endDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 6),
-      },
-      {
-        location: {
-          name: "Barcelona",
-        },
-        startDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 6),
-        endDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 8),
-      },
-      {
-        location: {
-          name: "Bilbao",
-        },
-        startDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 8),
-        endDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 10),
-      },
-    ]
-
-  }
-}
-
+// data used for the first start of the component
 export function getTripSectionsInitialData() {
   const today = new Date();
 
@@ -88,57 +44,11 @@ export function getTripSectionsInitialData() {
           name: "Madrid",
         },
         startDate: today,
-        endDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 6),
-      }
+        endDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 10),
+      },
     ]
 
   }
-}
-
-export function getCurrentFlightRouteDummy() {
-  const today = new Date();
-
-  return [
-    {
-      startLocation: {
-        input: 'Berlin (SXF)',
-        city: 'Berlin',
-        iata: 'SXF',
-      },
-      endLocation: {
-        input: 'Barcelona (BCN)',
-        city: 'Barcelona',
-        iata: 'BCN',
-      },
-      travelDate: today,
-    },
-    {
-      startLocation: {
-        input: 'Barcelona (BCN)',
-        city: 'Barcelona',
-        iata: 'BCN',
-      },
-      endLocation: {
-        input: 'Madrid (MAD)',
-        city: 'Madrid',
-        iata: 'MAD',
-      },
-      travelDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 5),
-    },
-    {
-      startLocation: {
-        input: 'Madrid (MAD)',
-        city: 'Madrid',
-        iata: 'MAD',
-      },
-      endLocation: {
-        input: 'Berlin (SXF)',
-        city: 'Berlin',
-        iata: 'SXF',
-      },
-      travelDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 10),
-    },
-  ];
 }
 
 export function queryFlightRoutes(flightRouteParams) {
@@ -167,9 +77,9 @@ export function queryFlightRoutes(flightRouteParams) {
         const randTravelTime = getRandTravelTime(60, 180);
 
         let startTimeAsMoment = moment({
-          years: flightQuery.travelDate.getFullYear(),
-          months: flightQuery.travelDate.getMonth(),
-          days: flightQuery.travelDate.getDay(),
+          years: new Date(flightQuery.travelDate).getFullYear(),
+          months: new Date(flightQuery.travelDate).getMonth(),
+          days: new Date(flightQuery.travelDate).getDay(),
           hours: depTime.split(":")[0],
           minutes: depTime.split(":")[1]
         });
@@ -182,7 +92,7 @@ export function queryFlightRoutes(flightRouteParams) {
           travelTime: randTravelTime,
           travelDate: flightQuery.travelDate,
           cabinClass: 'Economy',
-          flightNo: genFlightNo(),
+          flightNo: genFlightNo(airline.icao),
           airline,
           stopovers: 0,
         });
@@ -213,6 +123,43 @@ export function queryFlightRoutes(flightRouteParams) {
   return JSON.stringify(flightAlternatives);
 }
 
+// parses from http response JSON format to flight route model format
+export function ResponseJSONToFlightRoute(flightRouteJSON) {
+  let flightRouteTmp = new FlightRoute();
+  flightRouteTmp.price = flightRouteJSON.price;
+
+  for (const flight of flightRouteJSON.flights) {
+    let flightTmp = new Flight(flight.startTime, flight.endTime, flight.flightNo, flight.airline);
+    flightTmp.travelTime = flight.travelTime;
+    flightTmp.travelDate = flight.travelDate;
+
+    let flightSegmentTmp = new FlightSegment(flight.startTime, flight.startLocation, flight.endTime, flight.endLocation);
+    flightTmp.addFlightSegment(flightSegmentTmp);
+
+    flightRouteTmp.addFlight(flightTmp);
+  }
+  return flightRouteTmp;
+}
+
+// parses from internal flight route representation to flight route model
+export function InternalJSONToFlightRoute(flightRouteJSON) {
+  let flightRouteTmp = new FlightRoute();
+  flightRouteTmp.price = flightRouteJSON._price;
+
+  for (const flight of flightRouteJSON._flights) {
+    let flightTmp = new Flight(flight._startDate, flight._endDate, flight._flightNo, flight._airline);
+    flightTmp.travelTime = flight._travelTime;
+    flightTmp.travelDate = flight._travelDate;
+
+    let flightSegmentTmp = new FlightSegment(flight._startTime, flight._flightSegments[0]._startLocation, flight._endTime, flight._flightSegments[0]._endLocation);
+    flightTmp.addFlightSegment(flightSegmentTmp);
+
+    flightRouteTmp.addFlight(flightTmp);
+  }
+  return flightRouteTmp;
+}
+
+// find out whether an object is empty
 export function isEmpty(obj) {
 
   // null and undefined are "empty"

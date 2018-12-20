@@ -2,17 +2,18 @@
   .booking
     .hero.is-primary
       .hero-body
-        .container
+        .container.is-fluid.has-text-centered
+          a.button.is-pulled-left.is-transparent.btn-back(@click="onUserCancelBooking")
+            span(style="font-size: 1.8rem;")
+              i.fas.fa-chevron-left
           h1.title Booking
             |
-            i.fas.fa-clipboard
-            span.is-pulled-right(style="font-size: 1.8rem;")
-              i.far.fa-bell
+            i.fas.fa-clipboard.title-icon
           h2.subtitle Only a few steps left
     .form-wizard
       form-wizard(title="", subtitle="", stepSize="xs", color="#7957d5", errorColor="#ff3860", finishButtonText="Complete Booking", ref="wizard")
         tab-content(title='Options' :before-change="() => validateStep('options')")
-          section.section.trip-section-content(v-if="flightRouteData !== {}")
+          section.section.trip-section-content(v-if="!isEmpty(flightRouteData)")
             .container
               .title.has-text-left Flight Data
               .trip-section-wrapper.has-box-shadow
@@ -25,11 +26,11 @@
                         p.flight-duration {{ flight.travelTime + ' min' }}
                         .is-vh-centered
                           .flight-start
-                            .flight-location {{ flight.startLocation.city  + ' (' + flight.startLocation.iata + ')'}}
+                            .flight-location {{ getDisplayedInputDstStr(flight.startLocation.city, flight.startLocation.iata) }}
                             .flight-time {{ flight.startDate }}
                           i.flight-hr.fas.fa-plane
                           .flight-end
-                            .flight-location {{ flight.endLocation.city  + ' (' + flight.endLocation.iata + ')'}}
+                            .flight-location {{ getDisplayedInputDstStr(flight.endLocation.city, flight.endLocation.iata)  }}
                             .flight-time {{ flight.endDate }}
                       .column.is-offset-1.is-10(v-if="index < flightRouteData.flights.length - 1")
                         .trip-section-waiting-time {{ 'Aufenthaltsdauer: ' + getTimeOfStay(flightRouteData.flights, index) + ' Tage' }}
@@ -150,9 +151,9 @@
               .title Flight Details
               .final-step__flight(v-for="flight in flightRouteData.flights")
                 h3 {{ moment(flight.travelDate).format('DD.MM.YY') }}
-                p {{ flight.startLocation.city + ' (' + flight.startLocation.iata + ')' }}
+                p {{ getDisplayedInputDstStr(flight.startLocation.city, flight.startLocation.iata) }}
                   span.fas.fa-plane.final-step__plane-icon
-                  | {{ flight.startLocation.city + ' (' + flight.startLocation.iata + ')' }}
+                  | {{ getDisplayedInputDstStr(flight.endLocation.city, flight.endLocation.iata) }}
           section.section
             .container.has-text-left
               .title Personal Details
@@ -188,30 +189,19 @@
 import { required, numeric, email } from 'vuelidate/lib/validators';
 import moment from 'moment';
 import BNotification from 'buefy/src/components/notification/Notification.vue';
+import * as Helpers from '../lib/helpers';
+import { FlightRoute } from '../lib/model';
 
 const today = new Date();
 
 export default {
   name: 'booking',
   components: { BNotification },
-  props: {
-    flightRouteData: {
-      type: Object,
-      required: false,
-      default() {
-        return {};
-      },
-    },
-    tripSectionsData: {
-      type: Object,
-      required: false,
-      default() {
-        return {};
-      }
-    }
-  },
   data() {
     return {
+      tripSectionsData: {},
+      flightRouteData: {},
+
       SIZE_PHONE: 768,
       SIZE_TABLET: 1024,
       isTabletSize: false,
@@ -296,14 +286,36 @@ export default {
     },
   },
   methods: {
+    onUserCancelBooking() {
+      this.$dialog.confirm({
+        title: 'Cancel Booking',
+        message: 'Do you really want to cancel the current booking process?',
+        type: 'is-info',
+        onConfirm: () => this.$router.push({ name: 'home' })
+      })
+    },
     onUpdateTripSections(tripSectionsData) {
+      localStorage.setItem("tripSectionsData", JSON.stringify(tripSectionsData));
       this.onAbortBooking();
     },
+    getDisplayedInputDstStr(city, iata) {
+      if (iata === "") {
+        return city;
+      }
+      return `${city} (${iata})`;
+    },
+    isEmpty(obj) {
+      Helpers.isEmpty(obj);
+    },
     onAbortBooking() {
-      this.$toast.open({
-        message: 'Booking was aborted due to trip information changes in another component.',
+      this.$dialog.alert({
+        title: 'Trip Changed',
+        message: 'Booking aborted due to trip changes in another component. Redirecting to search page.',
         type: 'is-warning',
-      });
+        hasIcon: true,
+        icon: 'exclamation-triangle',
+        iconPack: 'fa'
+      })
       this.$router.push({ name: 'home' });
     },
     isLastStep() {
@@ -343,6 +355,16 @@ export default {
       }
     },
     onFinishBooking(event) {
+      var self = this
+      // update trip sections data according to data model (see composition model uml)
+      for (let i = 0; i < this.tripSectionsData.sections.length; i++) {
+        self.$set(self.tripSectionsData.sections[i], "transport", {
+          type: 'plane',
+          flights: [self.flightRouteData.flights[i], self.flightRouteData.flights[i+1]]
+        });
+      }
+      window.eventBus.$emit('updateTripSections', this.tripSectionsData);
+
       this.$toast.open({
         message: 'Booking was successful.',
         type: 'is-success',
@@ -371,6 +393,16 @@ export default {
   },
   created() {
     this.model.options.luggageOption = this.luggageOptions[0].id;
+
+    // retrieve saved data
+    if (localStorage.getItem("tripSectionsData")) {
+      this.tripSectionsData = JSON.parse(localStorage.getItem("tripSectionsData"))
+    }
+
+    if (localStorage.getItem("flightRouteData")) {
+      let flightRouteDataJSON = JSON.parse(localStorage.getItem("flightRouteData"))
+      this.flightRouteData = Helpers.InternalJSONToFlightRoute(flightRouteDataJSON);
+    }
   },
   mounted() {
     // register event listeners for resize event
@@ -384,6 +416,15 @@ export default {
 </script>
 
 <style lang="sass" scoped>
+.button.is-transparent
+  background-color: transparent
+  border: 0
+
+.btn-back
+  color: #fff
+  position: absolute
+  left: 0
+
 .wizard-header
   display: none
 .wizard-navigation
@@ -394,7 +435,7 @@ export default {
   .container
     max-width: 800px !important
 .container
-  max-width: 800px !important
+
 
 .trip-section-wrapper
   padding: 2rem

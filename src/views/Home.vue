@@ -5,9 +5,7 @@
         .container
           h1.title Flugsuche
             |
-            i.fas.fa-plane
-            span.is-pulled-right(style="font-size: 1.8rem;")
-              i.far.fa-bell
+            i.fas.fa-plane.title-icon
           h2.subtitle Finde den passenden Flug
     section.flight-request-form.section#main
       .container
@@ -75,6 +73,9 @@
               v-bind:label="searchedFlightRoute[index].startLocation.city + ' - ' + searchedFlightRoute[index].endLocation.city")
                 vue-slider(ref="slider" v-model="filters.travelTimes[index]" v-bind="options" class="traveltimes-slider")
 
+
+        section
+          b-loading(:is-full-page="true" :active.sync="isLoadingResults" :can-cancel="false")
         section.flight-route-results.section.column.is-offset-1-desktop(v-if="filteredFlightRouteList.length" :class="!isTabletSize && !isPhoneSize ? 'is-desktop' : 'is-mobile'")
           paginate(v-if="filteredFlightRouteList !== []" name="filteredFlightRouteList", :list="filteredFlightRouteList", class="paginate-list", tag="div", :refreshCurrentPage="false")
             .columns.flight-route-result.has-box-shadow(v-for="flightRouteResult in paginated('filteredFlightRouteList')")
@@ -87,11 +88,11 @@
                       p.flight-duration {{ flight.travelTime + ' min' }}
                       .is-vh-centered
                         .flight-start
-                          .flight-location {{ flight.startLocation.city + ' (' + flight.startLocation.iata + ')'}}
+                          .flight-location {{ getDisplayedInputDstStr(flight.startLocation.city, flight.startLocation.iata) }}
                           .flight-time {{ flight.startDate }}
                         i.flight-hr.fas.fa-plane
                         .flight-end
-                          .flight-location {{ flight.endLocation.city + ' (' + flight.endLocation.iata + ')'}}
+                          .flight-location {{ getDisplayedInputDstStr(flight.endLocation.city, flight.endLocation.iata) }}
                           .flight-time {{ flight.endDate }}
                             sup(v-if="!isSameDay(flight.startDate, flight.travelTime, flight.travelDate)") +1
               .column.is-3.is-vh-centered.is-vertically-stacked.flight-route-results__cta(:class="isPhoneSize ? 'is-mobile' : 'is-desktop'")
@@ -133,7 +134,30 @@
           button.button.is-primary(@click="onOpenBookingWizard(flightRouteModalData)")
             | Buchen für {{ flightRouteModalData.price | currency }}
 
-
+    aside.nav-drawer-container.has-text-left(v-if="searchedFlightRoute.length > 0 && (isTabletSize || isPhoneSize)" :class="isFilterDrawerActive ? 'is-active' : ''")
+      .filter-drawer
+        .filter-drawer-header
+          h3.filter-drawer-title
+            | Filter
+          button.button.is-outlined.filter-drawer-btn-close(@click="isFilterDrawerActive = false") Fertig
+        .filter-drawer-content
+          .filter-option
+            p.menu-label.filter-option__header
+              | Stopovers
+            .filter-option__body
+              b-field
+                b-checkbox(v-model="filters.stopovers" native-value="0") 0 Stopovers
+              b-field
+                b-checkbox(v-model="filters.stopovers" native-value="1") 1 Stopover
+              b-field
+              b-checkbox(v-model="filters.stopovers" native-value="2") 2 Stopovers
+          .filter-option
+            p.menu-label.filter-option__header
+              | Travel Times
+            .filter-option__body
+              b-field(v-for="(travelTime, index) in filters.travelTimes" :key="index"
+              v-bind:label="searchedFlightRoute[index].startLocation.city + ' - ' + searchedFlightRoute[index].endLocation.city")
+                vue-slider(ref="slider" v-model="filters.travelTimes[index]" v-bind="options" class="traveltimes-slider", :show="drawerAnimFinished")
 </template>
 
 <script>
@@ -147,7 +171,6 @@ import moment from 'moment';
 
 import { Flight, FlightRoute, FlightSegment } from '../lib/model';
 import * as Helpers from '../lib/helpers';
-import { isEmpty } from '../lib/helpers';
 
 export default {
   name: 'home',
@@ -164,6 +187,9 @@ export default {
 
     return {
       name: '',
+
+      isLoadingResults: false,
+      defaultLoadingDuration: 2000,
 
       paginate: ['filteredFlightRouteList'],
 
@@ -219,10 +245,12 @@ export default {
   methods: {
 
     onOpenBookingWizard(flightRouteData) {
-      var self = this;
-      this.$router.push({ name: 'booking', params: { flightRouteData, tripSectionsData: self.tripSectionsData } })
+      localStorage.setItem("flightRouteData", JSON.stringify(flightRouteData))
+      this.$router.push({ name: 'booking' })
     },
 
+    // check if start and end date are on the same day,
+    // otherwise show "+1" to indicate that
     isSameDay(startTimeStr, travelTime, travelDateStr) {
       let startTimeMoment = moment(startTimeStr, 'hh:mm A');
       let travelDate = new Date(travelDateStr);
@@ -233,6 +261,7 @@ export default {
       return startDateMoment.isSame(endDateMoment, 'days');
     },
 
+    // show filter drawer with animation on mobile/tablet
     onClickFilter() {
       this.isFilterDrawerActive = true;
       var self = this;
@@ -241,6 +270,7 @@ export default {
       }, 400);
     },
 
+    // show details of selected flight route
     openFlightRouteDetailsModal(flightRouteResult) {
       this.flightRouteModalData = flightRouteResult;
       this.isFlightModalActive = true;
@@ -282,6 +312,10 @@ export default {
     onUpdateTripSections(tripSectionsData) {
       let searchSection;
       this.tripSections = tripSectionsData;
+      // save trip sections data persistently
+
+      localStorage.setItem('tripSectionsData', JSON.stringify(tripSectionsData));
+
       var self = this;
 
       let searchData = [];
@@ -310,7 +344,7 @@ export default {
                 iata: exampleIata,
                 input: self.getDisplayedInputDstStr(tripSection.location.name, exampleIata)
               },
-              travelDate: tripSection.startDate
+              travelDate: new Date(tripSection.startDate)
             };
 
             break;
@@ -334,7 +368,7 @@ export default {
                 iata: exampleIataEnd,
                 input: self.getDisplayedInputDstStr(tripSection.location.name, exampleIataEnd)
               },
-              travelDate: tripSection.startDate
+              travelDate: new Date(tripSection.startDate)
             };
             break;
         }
@@ -351,7 +385,7 @@ export default {
         endLocation: {
           ...this.defaultGermanAirport
         },
-        travelDate: tripSectionsData.endDate,
+        travelDate: new Date(tripSectionsData.endDate),
       };
 
       searchData.push(searchSection);
@@ -367,6 +401,7 @@ export default {
       })
     },
 
+    // update displayed filter options
     updateFilterData(searchData) {
       let travelTimes = [];
       let travelTime = ["00:00", "23:59"];
@@ -386,12 +421,6 @@ export default {
       const travelDate = new Date(2012, 10, 2, parseInt(timeTemp[0], 10), parseInt(timeTemp[1]), 10);
 
       return startDate <= travelDate && endDate >= travelDate;
-    },
-
-    saveFlight(event) {
-      this.isFlightModalActive = false;
-      this.$toast.open("Flug wurde gespeichert.");
-      // TODO: send data to other comps
     },
 
     onResize(event) {
@@ -421,41 +450,35 @@ export default {
 
     searchFlightRoutes() {
       var self = this;
+      this.isLoadingResults = true;
 
-      // to prevent input errors
-      for (var inputRow of this.inputFlightRoute) {
-        inputRow.startLocation.input = self.getDisplayedInputDstStr(inputRow.startLocation.city, inputRow.startLocation.iata);
-        inputRow.endLocation.input = self.getDisplayedInputDstStr(inputRow.endLocation.city, inputRow.endLocation.iata);
-      }
-
-      // so that in filter section flight infos get synced
-      this.searchedFlightRoute = this.inputFlightRoute.slice();
-
-      // retrieve JSON data
-      let resultData = JSON.parse(Helpers.queryFlightRoutes(this.searchedFlightRoute));
-
-      // save data in js class implementation for consistency
-      let flightRouteResultsTmp = [];
-
-      for (const result of resultData){
-        let flightRouteTmp = new FlightRoute();
-        flightRouteTmp.price = result.price;
-
-        for (const flight of result.flights) {
-          let flightTmp = new Flight(flight.startTime, flight.endTime, flight.flightNo, flight.airline);
-          flightTmp.travelTime = flight.travelTime;
-          flightTmp.travelDate = flight.travelDate;
-
-          let flightSegmentTmp = new FlightSegment(flight.startTime, flight.startLocation, flight.endTime, flight.endLocation);
-          flightTmp.addFlightSegment(flightSegmentTmp);
-
-          flightRouteTmp.addFlight(flightTmp);
+      // timeout for mocking rtt of http request
+      setTimeout(() => {
+        // to prevent input errors
+        for (var inputRow of this.inputFlightRoute) {
+          inputRow.startLocation.input = self.getDisplayedInputDstStr(inputRow.startLocation.city, inputRow.startLocation.iata);
+          inputRow.endLocation.input = self.getDisplayedInputDstStr(inputRow.endLocation.city, inputRow.endLocation.iata);
         }
 
-        flightRouteResultsTmp.push(flightRouteTmp);
-      }
+        // so that in filter section flight infos get synced
+        this.searchedFlightRoute = this.inputFlightRoute.slice();
 
-      this.flightRouteResults = flightRouteResultsTmp;
+
+        // retrieve JSON data
+        let resultData = JSON.parse(Helpers.queryFlightRoutes(this.searchedFlightRoute));
+
+        // save data in js class implementation for consistency
+        let flightRouteResultsTmp = [];
+
+        for (const result of resultData){
+          let flightRouteTmp = Helpers.ResponseJSONToFlightRoute(result);
+          flightRouteResultsTmp.push(flightRouteTmp);
+        }
+
+        this.flightRouteResults = flightRouteResultsTmp;
+
+        self.isLoadingResults = false;
+      }, self.defaultLoadingDuration)
     }
   },
   computed: {
@@ -517,10 +540,19 @@ export default {
 
     this.flightDestinations = Helpers.getAirportList();
 
-    this.onUpdateTripSections(Helpers.getTripSectionsInitialData())
-    //this.onUpdateTripSections(Helpers.getTripSectionsDataDummy())
-    //this.searchedFlightRoute = Helpers.getCurrentFlightRouteDummy();
-    //this.inputFlightRoute = this.searchedFlightRoute.slice();
+    // retrieve saved data if page gets refreshed
+    if (localStorage.getItem("tripSectionsData")) {
+      let savedTripSectionsData = JSON.parse(localStorage.getItem("tripSectionsData"))
+      this.onUpdateTripSections(savedTripSectionsData)
+    }
+
+    // reset saved flight route data
+    if (localStorage.getItem("flightRouteData")) {
+      localStorage.removeItem("flightRouteData")
+    }
+
+    // when page is loaded for the first time use dummy data
+    else this.onUpdateTripSections(Helpers.getTripSectionsInitialData())
 
   },
 
@@ -552,6 +584,8 @@ export default {
 };
 </script>
 <style lang="sass">
+.title-icon
+  padding-left: .4rem
 #nav
   padding: 30px
   a

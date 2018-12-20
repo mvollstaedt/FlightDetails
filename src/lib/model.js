@@ -12,6 +12,10 @@ export class FlightSegment {
     this._airline = airline;
   }
 
+  get airline() {
+    return this._airline;
+  }
+
   set segmentNo(segmentNo) {
     this._segmentNo = segmentNo;
   }
