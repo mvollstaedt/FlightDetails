@@ -76,9 +76,14 @@
 
         section
           b-loading(:is-full-page="true" :active.sync="isLoadingResults" :can-cancel="false")
+
         section.flight-route-results.section.column.is-offset-1-desktop(v-if="filteredFlightRouteList.length" :class="!isTabletSize && !isPhoneSize ? 'is-desktop' : 'is-mobile'")
-          paginate(v-if="filteredFlightRouteList !== []" name="filteredFlightRouteList", :list="filteredFlightRouteList", class="paginate-list", tag="div", :refreshCurrentPage="false")
-            .columns.flight-route-result.has-box-shadow(v-for="flightRouteResult in paginated('filteredFlightRouteList')")
+          b-field.columns.sort-dropdown.has-text-right
+            b-select(rounded placeholder="Sort By Criteria" v-model="sortCriteriaKey")
+              option(value="0") Sort by Price
+              option(value="1") Sort by Duration
+          paginate(v-if="sortedFlightRouteResults !== []" name="sortedFlightRouteResults", :list="sortedFlightRouteResults", class="paginate-list", tag="div", :refreshCurrentPage="true")
+            .columns.flight-route-result.has-box-shadow(v-for="flightRouteResult in paginated('sortedFlightRouteResults')")
               .column.is-9
                 .column
                   .columns.is-mobile.flight-info.is-vh-centered(v-for="flight in flightRouteResult.flights")
@@ -98,7 +103,7 @@
               .column.is-3.is-vh-centered.is-vertically-stacked.flight-route-results__cta(:class="isPhoneSize ? 'is-mobile' : 'is-desktop'")
                 .flight-route-price {{ flightRouteResult.price | currency}}
                 button.button.is-medium.is-primary(@click="openFlightRouteDetailsModal(flightRouteResult)") Details
-          paginate-links(for="filteredFlightRouteList" :async="true")
+          paginate-links(for="sortedFlightRouteResults" :async="true")
         section.flight-route-results.section.column.is-offset-1-desktop(v-else)
           .column
             | Keine Suchergebnisse gefunden
@@ -171,6 +176,7 @@ import moment from 'moment';
 
 import { Flight, FlightRoute, FlightSegment } from '../lib/model';
 import * as Helpers from '../lib/helpers';
+import { InternalJSONToFlightRoute } from '../lib/helpers';
 
 export default {
   name: 'home',
@@ -191,7 +197,7 @@ export default {
       isLoadingResults: false,
       defaultLoadingDuration: 2000,
 
-      paginate: ['filteredFlightRouteList'],
+      paginate: ['sortedFlightRouteResults'],
 
       autocompleteActive: false,
 
@@ -240,10 +246,13 @@ export default {
       drawerAnimFinished: false,
 
       tripSections: {},
+
+      sortCriteria: ["price", "duration"],
+
+      sortCriteriaKey: "1"
     };
   },
   methods: {
-
     onOpenBookingWizard(flightRouteData) {
       localStorage.setItem("flightRouteData", JSON.stringify(flightRouteData))
       this.$router.push({ name: 'booking' })
@@ -479,9 +488,45 @@ export default {
 
         self.isLoadingResults = false;
       }, self.defaultLoadingDuration)
+    },
+
+    sortByProperty(property) {
+      switch(property) {
+        case 'price':
+          return (a, b) => {
+            if (a['_price'] < b['_price'])
+              return -1
+            if (a['_price'] > b['_price'])
+              return 1
+            return 0
+          }
+        case 'duration':
+          return (a, b) => {
+            if (a.travelTime < b.travelTime)
+              return -1
+            if (a.travelTime > b.travelTime)
+              return 1
+            return 0
+          }
+        default:
+          return undefined
+      }
     }
   },
   computed: {
+
+    sortedFlightRouteResults() {
+        // does the hard sorting work
+        var sortedData =  this.filteredFlightRouteList.sort(this.sortByProperty(this.sortCriteria[this.sortCriteriaKey]))
+
+        // now re-enable the reactivity of the data so that the template gets updated
+        var refreshedData = []
+        for (var result of sortedData) {
+          var refreshedResult = InternalJSONToFlightRoute({...result})
+          refreshedData.push(refreshedResult)
+        }
+        return refreshedData
+    },
 
     flightDestinationStrings() {
         return this.flightDestinations.map(location => {
@@ -759,5 +804,9 @@ body.no-scrolling
 
 .paginate-links .right-arrow
   margin-left: -1.25rem
+
+.sort-dropdown
+  justify-content: flex-end
+  margin-bottom: 2rem !important
 
 </style>

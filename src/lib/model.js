@@ -126,4 +126,12 @@ export class FlightRoute {
   get price() {
     return this._price;
   }
+
+  get travelTime() {
+    let totalTravelTime = 0;
+    for (var flight of this._flights) {
+      totalTravelTime = totalTravelTime + flight.travelTime;
+    }
+    return totalTravelTime;
+  }
 }
