@@ -22,7 +22,7 @@ Vue.use(VueFormWizard);
 Vue.use(Vuelidate);
 
 const router = new Router({
-  mode: 'history',
+  mode: 'hash',
   routes: [
     {
       path: '/',

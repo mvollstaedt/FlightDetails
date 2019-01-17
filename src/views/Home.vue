@@ -317,12 +317,22 @@ export default {
       locationObj.iata = iataStr;
     },
 
+    onUpdateTripSectionsEvent(event) {
+      if (event != null && event.data != null && event.data.sections != null) {
+        this.onUpdateTripSections(event.data);
+        this.$toast.open({
+          message: 'Flights were updated due to changes in another component',
+          type: 'is-warning',
+          duration: 4000
+        })
+      }
+    },
+
     // update ui with newly retrieved trip sections data
     onUpdateTripSections(tripSectionsData) {
       let searchSection;
       this.tripSections = tripSectionsData;
       // save trip sections data persistently
-
       localStorage.setItem('tripSectionsData', JSON.stringify(tripSectionsData));
 
       var self = this;
@@ -330,6 +340,8 @@ export default {
       let searchData = [];
 
       var i = 0;
+
+      console.log("Trip Sctions Data as JSON " + JSON.stringify(tripSectionsData, null, 4));
 
       // update flight input mask data
       for (const tripSection of tripSectionsData.sections) {
@@ -402,12 +414,6 @@ export default {
       this.updateFilterData(searchData);
       this.inputFlightRoute = searchData;
       this.searchFlightRoutes();
-
-      this.$toast.open({
-        message: 'Flights were updated due to changes in another component',
-        type: 'is-warning',
-        duration: 4000
-      })
     },
 
     // update displayed filter options
@@ -590,22 +596,26 @@ export default {
       let savedTripSectionsData = JSON.parse(localStorage.getItem("tripSectionsData"))
       this.onUpdateTripSections(savedTripSectionsData)
     }
+    // when page is loaded for the first time use dummy data
+    else this.onUpdateTripSections(Helpers.getTripSectionsInitialData())
 
     // reset saved flight route data
     if (localStorage.getItem("flightRouteData")) {
       localStorage.removeItem("flightRouteData")
     }
 
-    // when page is loaded for the first time use dummy data
-    else this.onUpdateTripSections(Helpers.getTripSectionsInitialData())
-
   },
 
   mounted() {
 
+    var self = this
+
     // register event listeners for resize event
     window.addEventListener('resize', this.onResize);
     window.dispatchEvent(new Event('resize'));
+
+    // register event listener for documa <-> vue communication
+    window.addEventListener('message', self.onUpdateTripSectionsEvent);
 
     // fill hours for travel time slider options
     for (let i = 0; i < 49; i += 1) {
@@ -625,6 +635,7 @@ export default {
 
   beforeDestroy() {
     window.removeEventListener('resize', this.onResize);
+    window.removeEventListener('message', this.onUpdateTripSectionsEvent);
   }
 };
 </script>

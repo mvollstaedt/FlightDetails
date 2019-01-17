@@ -291,15 +291,22 @@ export default {
         title: 'Cancel Booking',
         message: 'Do you really want to cancel the current booking process?',
         type: 'is-info',
-        onConfirm: () => this.$router.push({ name: 'home' })
-      })
+        onConfirm: () => this.$router.push({ name: 'home' }),
+      });
+    },
+    onUpdateTripSectionsEvent(event) {
+      // making sure the right message event is processed
+      // avoid update when booking component is sending trip sections
+      if (event != null && event.data != null && event.data.sections != null) {
+        this.onUpdateTripSections(event.data);
+      }
     },
     onUpdateTripSections(tripSectionsData) {
-      localStorage.setItem("tripSectionsData", JSON.stringify(tripSectionsData));
+      localStorage.setItem('tripSectionsData', JSON.stringify(tripSectionsData));
       this.onAbortBooking();
     },
     getDisplayedInputDstStr(city, iata) {
-      if (iata === "") {
+      if (iata === '') {
         return city;
       }
       return `${city} (${iata})`;
@@ -314,9 +321,11 @@ export default {
         type: 'is-warning',
         hasIcon: true,
         icon: 'exclamation-triangle',
-        iconPack: 'fa'
-      })
-      this.$router.push({ name: 'home' });
+        iconPack: 'fa',
+        onConfirm: () => {
+          this.$router.push({ name: 'home' });
+        },
+      });
     },
     isLastStep() {
       if (this.$refs.wizard) {
@@ -355,15 +364,18 @@ export default {
       }
     },
     onFinishBooking(event) {
-      var self = this
+      const self = this;
+
       // update trip sections data according to data model (see composition model uml)
       for (let i = 0; i < this.tripSectionsData.sections.length; i++) {
-        self.$set(self.tripSectionsData.sections[i], "transport", {
+        self.$set(self.tripSectionsData.sections[i], 'transport', {
           type: 'plane',
-          flights: [self.flightRouteData.flights[i], self.flightRouteData.flights[i+1]]
+          flights: [self.flightRouteData.flights[i], self.flightRouteData.flights[i + 1]],
         });
       }
-      window.eventBus.$emit('updateTripSections', this.tripSectionsData);
+
+      console.log(this.tripSectionsData)
+      window.parent.postMessage(this.tripSectionsData, '*');
 
       this.$toast.open({
         message: 'Booking was successful.',
@@ -395,12 +407,12 @@ export default {
     this.model.options.luggageOption = this.luggageOptions[0].id;
 
     // retrieve saved data
-    if (localStorage.getItem("tripSectionsData")) {
-      this.tripSectionsData = JSON.parse(localStorage.getItem("tripSectionsData"))
+    if (localStorage.getItem('tripSectionsData')) {
+      this.tripSectionsData = JSON.parse(localStorage.getItem('tripSectionsData'));
     }
 
-    if (localStorage.getItem("flightRouteData")) {
-      let flightRouteDataJSON = JSON.parse(localStorage.getItem("flightRouteData"))
+    if (localStorage.getItem('flightRouteData')) {
+      const flightRouteDataJSON = JSON.parse(localStorage.getItem('flightRouteData'));
       this.flightRouteData = Helpers.InternalJSONToFlightRoute(flightRouteDataJSON);
     }
   },
@@ -408,9 +420,12 @@ export default {
     // register event listeners for resize event
     window.addEventListener('resize', this.onResize);
     window.dispatchEvent(new Event('resize'));
+
+    window.addEventListener('message', this.onUpdateTripSectionsEvent);
   },
   destroyed() {
     window.removeEventListener('resize', this.onResize);
+    window.removeEventListener('message', this.onUpdateTripSectionsEvent);
   },
 };
 </script>
