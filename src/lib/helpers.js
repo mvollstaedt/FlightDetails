@@ -12,7 +12,7 @@ function getRandTravelTime(min, max) {
 
 function genPrice(travelTime) {
   // 150 euros per hour
-  return Math.round(800 - (travelTime / 60 * 150));
+  return Math.round(1200 - (travelTime / 60 * 150));
 }
 
 function genFlightNo(icao, count = 5) {

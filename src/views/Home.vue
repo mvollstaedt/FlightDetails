@@ -13,10 +13,13 @@
           .column.is-1.is-relative
             .flight-no(:class="'flight-no-' + index")
               | {{ index + 1 }}
-          .column
+          .column(ref="input-from", :class="{ 'expanded': selectedInput.type === InputType.INPUT_FROM && selectedInput.rowIndex === index, 'hidden': selectedInput.type !== InputType.INPUT_FROM && selectedInput.rowIndex === index }")
             b-field(:label="index === 0 ? 'From' : ''")
               b-autocomplete(
                 rounded
+                @keyup.enter.native="resetInputSizes"
+                @keyup.esc.native="resetInputSizes"
+                @click.native="onClickInput(index, InputType.INPUT_FROM)"
                 @input="onInputAutocomplete(flight.startLocation.input)"
                 v-model="flight.startLocation.input"
                 :data="filteredFlightDestinations"
@@ -25,10 +28,13 @@
                 class="input-location"
                 :id="'input-from-' + index")
                 template(slot="empty") No results found
-          .column
+          .column(ref="input-to" :class="{ 'expanded': selectedInput.type === InputType.INPUT_TO && selectedInput.rowIndex === index, 'hidden': selectedInput.type !== InputType.INPUT_TO && selectedInput.rowIndex === index }")
             b-field(:label="index === 0 ? 'To' : ''")
               b-autocomplete(
               rounded
+              @click.native="onClickInput(index, InputType.INPUT_TO)"
+              @keyup.enter.native="resetInputSizes"
+              @keyup.esc.native="resetInputSizes"
               @input="onInputAutocomplete(flight.endLocation.input)"
               v-model="flight.endLocation.input"
               :data="filteredFlightDestinations"
@@ -36,9 +42,12 @@
               @select="option => onSelectLocation(flight.endLocation, option)"
               class="input-location")
                 template(slot="empty") No results found
-          .column
+          .column(ref="input-date" :class="{ 'expanded': selectedInput.type === InputType.TRAVELDATE && selectedInput.rowIndex === index, 'hidden': selectedInput.type !== InputType.TRAVELDATE && selectedInput.rowIndex === index }")
             b-field(:label="index === 0 ? 'When' : ''")
               b-datepicker(
+                @click.native="onClickInput(index, InputType.TRAVELDATE)"
+                @keyup.enter.native="resetInputSizes"
+                @keyup.esc.native="resetInputSizes"
                 rounded
                 placeholder="Click to select..."
                 :min-date="minDate"
@@ -190,6 +199,16 @@ export default {
     const today = new Date();
 
     return {
+
+      // saves which input field is currently selected (important for resizing fields on mobile)
+      selectedInput: {},
+
+      InputType: {
+        INPUT_FROM: 0,
+        INPUT_TO: 1,
+        TRAVELDATE: 2
+      },
+
       name: '',
 
       isLoadingResults: false,
@@ -254,6 +273,10 @@ export default {
     onOpenBookingWizard(flightRouteData) {
       localStorage.setItem("flightRouteData", JSON.stringify(flightRouteData))
       this.$router.push({ name: 'booking' })
+    },
+
+    onClickInput(rowIndex, type) {
+      this.selectedInput = { rowIndex, type };
     },
 
     // check if start and end date are on the same day,
@@ -407,9 +430,14 @@ export default {
 
       searchData.push(searchSection);
 
+      this.resetInputSizes()
       this.updateFilterData(searchData);
       this.inputFlightRoute = searchData;
       this.searchFlightRoutes();
+    },
+
+    resetInputSizes() {
+      this.selectedInput = {}
     },
 
     // update displayed filter options
@@ -818,7 +846,13 @@ body.no-scrolling
   margin-left: -1.25rem
 
 .sort-dropdown
+  display: flex
   justify-content: flex-end
   margin-bottom: 2rem !important
+
+@media screen and (max-width: 768px)
+  .hidden
+    display: none
+
 
 </style>
