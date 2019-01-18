@@ -94,11 +94,11 @@
                       .is-vh-centered
                         .flight-start
                           .flight-location {{ getDisplayedInputDstStr(flight.startLocation.city, flight.startLocation.iata) }}
-                          .flight-time {{ flight.startDate }}
+                          .flight-time {{ flight.startDate | momentjs('DD.MM.YY - HH:mm')}}
                         i.flight-hr.fas.fa-plane
                         .flight-end
                           .flight-location {{ getDisplayedInputDstStr(flight.endLocation.city, flight.endLocation.iata) }}
-                          .flight-time {{ flight.endDate }}
+                          .flight-time {{ flight.endDate | momentjs('DD.MM.YY - HH:mm')}}
                             sup(v-if="!isSameDay(flight.startDate, flight.travelTime, flight.travelDate)") +1
               .column.is-3.is-vh-centered.is-vertically-stacked.flight-route-results__cta(:class="isPhoneSize ? 'is-mobile' : 'is-desktop'")
                 .flight-route-price {{ flightRouteResult.price | currency}}
@@ -128,11 +128,11 @@
                       .is-vh-centered
                         .flight-start
                           .flight-location {{ flight.startLocation.city }}
-                          .flight-time {{ flight.startDate }}
+                          .flight-time {{ flight.startDate | momentjs('DD.MM.YY - HH:mm') }}
                         i.flight-hr.fas.fa-plane
                         .flight-end
                           .flight-location {{ flight.endLocation.city }}
-                          .flight-time {{ flight.endDate }}
+                          .flight-time {{ flight.endDate | momentjs('DD.MM.YY - HH:mm')}}
                     .column.is-offset-1.is-10(v-if="index < flightRouteModalData.flights.length - 1")
                       .trip-section-waiting-time {{ 'Aufenthaltsdauer: ' + getTimeOfStay(flightRouteModalData.flights, index) + ' Tage' }}
         footer.modal-card-foot.is-horizontal-centered
@@ -174,9 +174,7 @@ import BDatepicker from 'buefy/src/components/datepicker/Datepicker.vue';
 import VueSlider from 'vue-slider-component';
 import moment from 'moment';
 
-import { Flight, FlightRoute, FlightSegment } from '../lib/model';
 import * as Helpers from '../lib/helpers';
-import { InternalJSONToFlightRoute } from '../lib/helpers';
 
 export default {
   name: 'home',
@@ -341,8 +339,6 @@ export default {
 
       var i = 0;
 
-      console.log("Trip Sctions Data as JSON " + JSON.stringify(tripSectionsData, null, 4));
-
       // update flight input mask data
       for (const tripSection of tripSectionsData.sections) {
 
@@ -428,12 +424,17 @@ export default {
 
     // check if time is in certain time range
     timeInTimespan(time, timespan) {
+      let today = new Date();
       const timespanTemp = [timespan[0].split(':'), timespan[1].split(':')];
-      const timeTemp = time.split(':');
+      //const timeTemp = time.split(':');
 
-      const startDate = new Date(2012, 10, 2, parseInt(timespanTemp[0][0], 10), parseInt(timespanTemp[0][1]), 10);
-      const endDate = new Date(2012, 10, 2, parseInt(timespanTemp[1][0], 10), parseInt(timespanTemp[1][1]), 10);
-      const travelDate = new Date(2012, 10, 2, parseInt(timeTemp[0], 10), parseInt(timeTemp[1]), 10);
+      const startDate = new Date(today.getFullYear(), today.getMonth(), today.getDay(), parseInt(timespanTemp[0][0], 10), parseInt(timespanTemp[0][1]), 10);
+      const endDate = new Date(today.getFullYear(), today.getMonth(), today.getDay(), parseInt(timespanTemp[1][0], 10), parseInt(timespanTemp[1][1]), 10);
+      const travelDateAsDate = new Date(today.getFullYear(), today.getMonth(), today.getDay(), time.getHours, time.getMinutes);
+      const travelDateAsMoment = moment(travelDateAsDate);
+
+      return travelDateAsMoment.isBetween(moment(startDate), moment(endDate), 'minutes', '[]');
+      //const travelDate = new Date(2012, 10, 2, parseInt(timeTemp[0], 10), parseInt(timeTemp[1]), 10);
 
       return startDate <= travelDate && endDate >= travelDate;
     },
@@ -500,9 +501,9 @@ export default {
       switch(property) {
         case 'price':
           return (a, b) => {
-            if (a['_price'] < b['_price'])
+            if (a['price'] < b['price'])
               return -1
-            if (a['_price'] > b['_price'])
+            if (a['price'] > b['price'])
               return 1
             return 0
           }
@@ -528,7 +529,7 @@ export default {
         // now re-enable the reactivity of the data so that the template gets updated
         var refreshedData = []
         for (var result of sortedData) {
-          var refreshedResult = InternalJSONToFlightRoute({...result})
+          var refreshedResult = Helpers.ResponseJSONToFlightRoute({...result})
           refreshedData.push(refreshedResult)
         }
         return refreshedData

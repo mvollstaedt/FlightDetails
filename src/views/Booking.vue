@@ -27,11 +27,11 @@
                         .is-vh-centered
                           .flight-start
                             .flight-location {{ getDisplayedInputDstStr(flight.startLocation.city, flight.startLocation.iata) }}
-                            .flight-time {{ flight.startDate }}
+                            .flight-time {{ flight.startDate | momentjs('DD.MM.YY - HH:mm') }}
                           i.flight-hr.fas.fa-plane
                           .flight-end
                             .flight-location {{ getDisplayedInputDstStr(flight.endLocation.city, flight.endLocation.iata)  }}
-                            .flight-time {{ flight.endDate }}
+                            .flight-time {{ flight.endDate | momentjs('DD.MM.YY - HH:mm') }}
                       .column.is-offset-1.is-10(v-if="index < flightRouteData.flights.length - 1")
                         .trip-section-waiting-time {{ 'Aufenthaltsdauer: ' + getTimeOfStay(flightRouteData.flights, index) + ' Tage' }}
           section.section.further-options-content
@@ -298,7 +298,25 @@ export default {
       // making sure the right message event is processed
       // avoid update when booking component is sending trip sections
       if (event != null && event.data != null && event.data.sections != null) {
-        this.onUpdateTripSections(event.data);
+        var hotelDataChanged = false;
+        var tripDetailsChanged = false;
+
+        var savedTripSectionsData = localStorage.getItem('tripSectionsData', JSON.stringify(tripSectionsData));
+        if (savedTripSectionsData.sections.length === event.data.sections.length) {
+          for (let i = 0; i < savedTripSectionsData.sections.length; i++) {
+            if (!Helpers.deepCompare(savedTripSectionsData.sections[i].hotel, event.data.sections[i].hotel)) {
+              hotelDataChanged = true;
+            }
+          }
+          if (hotelDataChanged === false) {
+            tripDetailsChanged = true;
+          }
+        } else {
+          tripDetailsChanged = true;
+        }
+        if (hotelDataChanged === false) {
+          this.onUpdateTripSections(event.data);
+        }
       }
     },
     onUpdateTripSections(tripSectionsData) {
@@ -374,7 +392,7 @@ export default {
         });
       }
 
-      console.log(this.tripSectionsData)
+      console.log("updateTripSections with: " + JSON.stringify(this.tripSectionsData, null, 4));
       window.parent.postMessage(this.tripSectionsData, '*');
 
       this.$toast.open({
@@ -399,6 +417,9 @@ export default {
       }
       return concealedNumber;
     },
+    momentjs: (val, format) => {
+      return moment(val).format(format);
+    }
   },
   beforeCreate() {
     this.moment = moment;
@@ -413,7 +434,7 @@ export default {
 
     if (localStorage.getItem('flightRouteData')) {
       const flightRouteDataJSON = JSON.parse(localStorage.getItem('flightRouteData'));
-      this.flightRouteData = Helpers.InternalJSONToFlightRoute(flightRouteDataJSON);
+      this.flightRouteData = Helpers.JSONToFlightRoute(flightRouteDataJSON);
     }
   },
   mounted() {
