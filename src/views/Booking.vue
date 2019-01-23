@@ -207,6 +207,11 @@ export default {
       isTabletSize: false,
       isPhoneSize: false,
 
+      Sender: {
+        HOTEL_DETAILS: 'HotelDetails',
+        TRAVEL_DETAILS: 'TravelDetails',
+      },
+
       luggageOptions: [
         {
           id: '1x Carry-On, 1x Drop-Off Baggage (max. 23kg)',
@@ -297,28 +302,24 @@ export default {
     onUpdateTripSectionsEvent(event) {
       // making sure the right message event is processed
       // avoid update when booking component is sending trip sections
-      if (event != null && event.data != null && event.data.sections != null) {
-        var hotelDataChanged = false;
-        var tripDetailsChanged = false;
-
-        var savedTripSectionsData = localStorage.getItem('tripSectionsData', JSON.stringify(tripSectionsData));
-        if (savedTripSectionsData.sections.length === event.data.sections.length) {
-          for (let i = 0; i < savedTripSectionsData.sections.length; i++) {
-            if (!Helpers.deepCompare(savedTripSectionsData.sections[i].hotel, event.data.sections[i].hotel)) {
-              hotelDataChanged = true;
-            }
-          }
-          if (hotelDataChanged === false) {
-            tripDetailsChanged = true;
-          }
-        } else {
-          tripDetailsChanged = true;
-        }
-        if (hotelDataChanged === false) {
-          this.onUpdateTripSections(event.data);
+      if (event != null && event.data != null && event.data.sender != null) {
+        switch (event.data.sender) {
+          case this.Sender.HOTEL_DETAILS:
+            this.saveTripSectionsLocally(event.data);
+            break;
+          case this.Sender.TRAVEL_DETAILS:
+            this.onUpdateTripSections(event.data);
+            break;
+          default:
+            console.log(`Sent from unknown sender: ${event.data.sender}`);
         }
       }
     },
+
+    saveTripSectionsLocally(tripSectionsData) {
+      localStorage.setItem('tripSectionsData', JSON.stringify(tripSectionsData));
+    },
+
     onUpdateTripSections(tripSectionsData) {
       localStorage.setItem('tripSectionsData', JSON.stringify(tripSectionsData));
       this.onAbortBooking();
@@ -392,7 +393,7 @@ export default {
         });
       }
 
-      console.log("updateTripSections with: " + JSON.stringify(this.tripSectionsData, null, 4));
+      console.log(`updateTripSections with: ${JSON.stringify(this.tripSectionsData, null, 4)}`);
       window.parent.postMessage(this.tripSectionsData, '*');
 
       this.$toast.open({
@@ -417,9 +418,7 @@ export default {
       }
       return concealedNumber;
     },
-    momentjs: (val, format) => {
-      return moment(val).format(format);
-    }
+    momentjs: (val, format) => moment(val).format(format),
   },
   beforeCreate() {
     this.moment = moment;

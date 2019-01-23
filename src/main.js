@@ -13,8 +13,6 @@ import 'vue-form-wizard/dist/vue-form-wizard.min.css';
 import Home from './views/Home.vue';
 import Booking from './views/Booking.vue';
 
-import { isEmpty } from './lib/helpers';
-
 Vue.use(Buefy);
 Vue.use(VuePaginate);
 Vue.use(Router);

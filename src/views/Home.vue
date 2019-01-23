@@ -184,10 +184,12 @@ import VueSlider from 'vue-slider-component';
 import moment from 'moment';
 
 import * as Helpers from '../lib/helpers';
+import BNotification from 'buefy/src/components/notification/Notification';
 
 export default {
   name: 'home',
   components: {
+    BNotification,
     BDatepicker,
     BAutocomplete,
     BField,
@@ -266,7 +268,12 @@ export default {
 
       sortCriteria: ["price", "duration"],
 
-      sortCriteriaKey: "1"
+      sortCriteriaKey: "1",
+
+      Sender: {
+        HOTEL_DETAILS: "HotelDetails",
+        TRAVEL_DETAILS: "TravelDetails"
+      },
     };
   },
   methods: {
@@ -339,14 +346,27 @@ export default {
     },
 
     onUpdateTripSectionsEvent(event) {
-      if (event != null && event.data != null && event.data.sections != null) {
-        this.onUpdateTripSections(event.data);
-        this.$toast.open({
-          message: 'Flights were updated due to changes in another component',
-          type: 'is-warning',
-          duration: 4000
-        })
+      if (event != null && event.data != null && event.data.sender != null) {
+        switch(event.data.sender) {
+          case this.Sender.HOTEL_DETAILS:
+            this.saveTripSectionsLocally(event.data);
+            break;
+          case this.Sender.TRAVEL_DETAILS:
+            this.onUpdateTripSections(event.data);
+            this.$toast.open({
+              message: 'Flights were updated due to changes in another component',
+              type: 'is-warning',
+              duration: 4000
+            })
+            break;
+          default:
+            console.log("Sent from unknown sender: " + event.data.sender)
+        }
       }
+    },
+
+    saveTripSectionsLocally(tripSectionsData) {
+      localStorage.setItem('tripSectionsData', JSON.stringify(tripSectionsData));
     },
 
     // update ui with newly retrieved trip sections data
@@ -354,7 +374,7 @@ export default {
       let searchSection;
       this.tripSections = tripSectionsData;
       // save trip sections data persistently
-      localStorage.setItem('tripSectionsData', JSON.stringify(tripSectionsData));
+      this.saveTripSectionsLocally(tripSectionsData);
 
       var self = this;
 
@@ -522,7 +542,11 @@ export default {
         this.flightRouteResults = flightRouteResultsTmp;
 
         self.isLoadingResults = false;
-      }, self.defaultLoadingDuration)
+      }, self.getRandomLoadingDuration())
+    },
+
+    getRandomLoadingDuration() {
+      return Math.floor(Math.random() * this.defaultLoadingDuration)
     },
 
     sortByProperty(property) {
