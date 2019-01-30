@@ -370,13 +370,7 @@ export default {
     onFinishBooking(event) {
       const self = this;
 
-      // update trip sections data according to data model (see composition model uml)
-      for (let i = 0; i < this.tripSectionsData.sections.length; i++) {
-        self.$set(self.tripSectionsData.sections[i], 'transport', {
-          type: 'plane',
-          flights: [self.flightRouteData.flights[i], self.flightRouteData.flights[i + 1]],
-        });
-      }
+      this.flightRouteToTripDetails(this.flightRouteData);
 
       console.log(`updateTripSections with: ${JSON.stringify(this.tripSectionsData, null, 4)}`);
       window.parent.postMessage(this.tripSectionsData, '*');
@@ -386,6 +380,26 @@ export default {
         type: 'is-success',
       });
       this.$router.push({ name: 'home' });
+    },
+    // update trip sections data according to data model (see composition model uml)
+    flightRouteToTripDetails(flightRouteData) {
+      let prunedFlightRouteData = flightRouteData;
+      for (const flight of prunedFlightRouteData.flights) {
+        if (flight.travelDate !== undefined) delete flight.travelDate;
+        for (const flightSegment of flight.flightSegments) {
+          if (flightSegment.startLocation.input !== undefined) delete flightSegment.startLocation.input;
+          if (flightSegment.endLocation.input !== undefined) delete flightSegment.endLocation.input;
+        }
+      }
+
+      for (let i = 0; i < this.tripSectionsData.sections.length; i++) {
+        this.$set(this.tripSectionsData.sections[i], 'transport', {
+          type: 'plane',
+          flights: [prunedFlightRouteData.flights[i], prunedFlightRouteData.flights[i + 1]],
+        });
+      }
+
+      return this.tripSectionsData;
     },
   },
   filters: {

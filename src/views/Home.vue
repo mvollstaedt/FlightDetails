@@ -374,7 +374,7 @@ export default {
           case 0:
             let exampleIata = "";
             this.flightDestinations.find(location => {
-              if(location.city === tripSection.location.name) {
+              if(location.city === tripSection.location) {
                 exampleIata = location.iata;
                 return true;
               }
@@ -385,9 +385,9 @@ export default {
                 ...this.defaultGermanAirport
               },
               endLocation: {
-                city: tripSection.location.name,
+                city: tripSection.location,
                 iata: exampleIata,
-                input: self.getDisplayedInputDstStr(tripSection.location.name, exampleIata)
+                input: self.getDisplayedInputDstStr(tripSection.location, exampleIata)
               },
               travelDate: new Date(tripSection.startDate)
             };
@@ -396,7 +396,7 @@ export default {
           default:
             let exampleIataEnd = "";
             this.flightDestinations.find(location => {
-              if(location.city === tripSection.location.name) {
+              if(location.city === tripSection.location) {
                 exampleIataEnd = location.iata;
                 return true;
               }
@@ -404,14 +404,14 @@ export default {
 
             searchSection = {
               startLocation: {
-                city: tripSectionsData.sections[i - 1].location.name,
+                city: tripSectionsData.sections[i - 1].location,
                 iata: searchData[searchData.length - 1].endLocation.iata,
                 input: searchData[searchData.length - 1].endLocation.input
               },
               endLocation: {
-                city: tripSection.location.name,
+                city: tripSection.location,
                 iata: exampleIataEnd,
-                input: self.getDisplayedInputDstStr(tripSection.location.name, exampleIataEnd)
+                input: self.getDisplayedInputDstStr(tripSection.location, exampleIataEnd)
               },
               travelDate: new Date(tripSection.startDate)
             };
@@ -423,7 +423,7 @@ export default {
 
       searchSection = {
         startLocation: {
-          city: tripSectionsData.sections[tripSectionsData.sections.length - 1].location.name,
+          city: tripSectionsData.sections[tripSectionsData.sections.length - 1].location,
           iata: searchData[searchData.length - 1].endLocation.iata,
           input: searchData[searchData.length - 1].endLocation.input,
         },
