@@ -185,3 +185,47 @@ export function isEmpty(obj) {
 
   return true;
 }
+
+export function relevantTripDetailsChanged(oldTripSections, newTripSections) {
+  // new infos are always better than no infos
+  if (oldTripSections === null) return true;
+
+  // check for number of sections
+  if (oldTripSections.sections.length !== newTripSections.sections.length) return true;
+
+  // check start and end dates of the whole trip
+  if (!moment(oldTripSections.startDate).isSame(moment(newTripSections.startDate))) return true;
+  if (!moment(oldTripSections.endDate).isSame(moment(newTripSections.endDate))) return true;
+
+  // check relevant details in sections
+  for (const oldSection of oldTripSections.sections) {
+    const equivalentSections = newTripSections.sections.filter((newSection) => {
+      return (oldSection.location === newSection.location
+          && moment(oldSection.startDate).isSame(moment(newSection.startDate))
+          && moment(oldSection.endDate).isSame(moment(newSection.endDate)));
+    });
+
+    // if there is no equivalent section
+    if (equivalentSections === null || equivalentSections.length === 0) return true;
+  }
+
+  return false;
+}
+
+
+export function saveToLocalStorage(key, data) {
+  localStorage.setItem(key, JSON.stringify(data));
+}
+
+export function getFromLocalStorage(key) {
+  return JSON.parse(localStorage.getItem(key));
+}
+
+export function removeFromLocalStorage(key) {
+  return localStorage.removeItem(key);
+}
+
+export const LocalStorageKeys = {
+  FLIGHTROUTE: 'flightRouteData',
+  TRIPSECTIONS: 'tripSectionsData',
+}

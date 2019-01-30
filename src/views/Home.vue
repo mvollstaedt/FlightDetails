@@ -82,7 +82,6 @@
               v-bind:label="searchedFlightRoute[index].startLocation.city + ' - ' + searchedFlightRoute[index].endLocation.city")
                 vue-slider(ref="slider" v-model="filters.travelTimes[index]" v-bind="options" class="traveltimes-slider")
 
-
         section
           b-loading(:is-full-page="true" :active.sync="isLoadingResults" :can-cancel="false")
 
@@ -269,11 +268,6 @@ export default {
       sortCriteria: ["price", "duration"],
 
       sortCriteriaKey: "1",
-
-      Sender: {
-        HOTEL_DETAILS: "HotelDetails",
-        TRAVEL_DETAILS: "TravelDetails"
-      },
     };
   },
   methods: {
@@ -346,27 +340,18 @@ export default {
     },
 
     onUpdateTripSectionsEvent(event) {
-      if (event != null && event.data != null && event.data.sender != null) {
-        switch(event.data.sender) {
-          case this.Sender.HOTEL_DETAILS:
-            this.saveTripSectionsLocally(event.data);
-            break;
-          case this.Sender.TRAVEL_DETAILS:
-            this.onUpdateTripSections(event.data);
-            this.$toast.open({
-              message: 'Flights were updated due to changes in another component',
-              type: 'is-warning',
-              duration: 4000
-            })
-            break;
-          default:
-            console.log("Sent from unknown sender: " + event.data.sender)
+      if (event != null && event.data != null && event.data.sections != null) {
+        if (Helpers.relevantTripDetailsChanged(Helpers.getFromLocalStorage(Helpers.LocalStorageKeys.TRIPSECTIONS), event.data)) {
+          this.onUpdateTripSections(event.data);
+          this.$toast.open({
+            message: 'Flights were updated due to changes in another component',
+            type: 'is-warning',
+            duration: 4000
+          })
+        } else {
+          Helpers.saveToLocalStorage(Helpers.LocalStorageKeys.TRIPSECTIONS, event.data);
         }
       }
-    },
-
-    saveTripSectionsLocally(tripSectionsData) {
-      localStorage.setItem('tripSectionsData', JSON.stringify(tripSectionsData));
     },
 
     // update ui with newly retrieved trip sections data
@@ -374,7 +359,7 @@ export default {
       let searchSection;
       this.tripSections = tripSectionsData;
       // save trip sections data persistently
-      this.saveTripSectionsLocally(tripSectionsData);
+      Helpers.saveToLocalStorage(Helpers.LocalStorageKeys.TRIPSECTIONS, tripSectionsData);
 
       var self = this;
 
@@ -450,7 +435,7 @@ export default {
 
       searchData.push(searchSection);
 
-      this.resetInputSizes()
+      this.resetInputSizes();
       this.updateFilterData(searchData);
       this.inputFlightRoute = searchData;
       this.searchFlightRoutes();
@@ -645,23 +630,21 @@ export default {
     this.flightDestinations = Helpers.getAirportList();
 
     // retrieve saved data if page gets refreshed
-    if (localStorage.getItem("tripSectionsData")) {
-      let savedTripSectionsData = JSON.parse(localStorage.getItem("tripSectionsData"))
+    let savedTripSectionsData = Helpers.getFromLocalStorage(Helpers.LocalStorageKeys.TRIPSECTIONS);
+    if (savedTripSectionsData !== null) {
       this.onUpdateTripSections(savedTripSectionsData)
     }
     // when page is loaded for the first time use dummy data
-    else this.onUpdateTripSections(Helpers.getTripSectionsInitialData())
+    else this.onUpdateTripSections(Helpers.getTripSectionsInitialData());
 
     // reset saved flight route data
-    if (localStorage.getItem("flightRouteData")) {
-      localStorage.removeItem("flightRouteData")
-    }
-
+    let localFlightRouteData = Helpers.getFromLocalStorage(Helpers.LocalStorageKeys.FLIGHTROUTE);
+    if (localFlightRouteData !== null) Helpers.removeFromLocalStorage(Helpers.LocalStorageKeys.FLIGHTROUTE);
   },
 
   mounted() {
 
-    var self = this
+    var self = this;
 
     // register event listeners for resize event
     window.addEventListener('resize', this.onResize);

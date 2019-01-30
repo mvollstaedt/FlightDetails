@@ -207,11 +207,6 @@ export default {
       isTabletSize: false,
       isPhoneSize: false,
 
-      Sender: {
-        HOTEL_DETAILS: 'HotelDetails',
-        TRAVEL_DETAILS: 'TravelDetails',
-      },
-
       luggageOptions: [
         {
           id: '1x Carry-On, 1x Drop-Off Baggage (max. 23kg)',
@@ -301,27 +296,17 @@ export default {
     },
     onUpdateTripSectionsEvent(event) {
       // making sure the right message event is processed
-      // avoid update when booking component is sending trip sections
-      if (event != null && event.data != null && event.data.sender != null) {
-        switch (event.data.sender) {
-          case this.Sender.HOTEL_DETAILS:
-            this.saveTripSectionsLocally(event.data);
-            break;
-          case this.Sender.TRAVEL_DETAILS:
-            this.onUpdateTripSections(event.data);
-            break;
-          default:
-            console.log(`Sent from unknown sender: ${event.data.sender}`);
+      if (event != null && event.data != null && event.data.sections != null) {
+        if (Helpers.relevantTripDetailsChanged(Helpers.getFromLocalStorage(Helpers.LocalStorageKeys.TRIPSECTIONS), event.data)) {
+          this.onUpdateTripSections(event.data);
+        } else {
+          Helpers.saveToLocalStorage(Helpers.LocalStorageKeys.TRIPSECTIONS, event.data);
         }
       }
     },
 
-    saveTripSectionsLocally(tripSectionsData) {
-      localStorage.setItem('tripSectionsData', JSON.stringify(tripSectionsData));
-    },
-
     onUpdateTripSections(tripSectionsData) {
-      localStorage.setItem('tripSectionsData', JSON.stringify(tripSectionsData));
+      Helpers.saveToLocalStorage(Helpers.LocalStorageKeys.TRIPSECTIONS, tripSectionsData);
       this.onAbortBooking();
     },
     getDisplayedInputDstStr(city, iata) {
@@ -427,14 +412,11 @@ export default {
     this.model.options.luggageOption = this.luggageOptions[0].id;
 
     // retrieve saved data
-    if (localStorage.getItem('tripSectionsData')) {
-      this.tripSectionsData = JSON.parse(localStorage.getItem('tripSectionsData'));
-    }
+    let localTripData = Helpers.getFromLocalStorage(Helpers.LocalStorageKeys.TRIPSECTIONS);
+    if (localTripData !== null) this.tripSectionsData = localTripData;
 
-    if (localStorage.getItem('flightRouteData')) {
-      const flightRouteDataJSON = JSON.parse(localStorage.getItem('flightRouteData'));
-      this.flightRouteData = Helpers.JSONToFlightRoute(flightRouteDataJSON);
-    }
+    let localFlightRouteData = Helpers.getFromLocalStorage(Helpers.LocalStorageKeys.FLIGHTROUTE);
+    if (localFlightRouteData !== null) this.flightRouteData = Helpers.JSONToFlightRoute(localFlightRouteData);
   },
   mounted() {
     // register event listeners for resize event
