@@ -104,7 +104,7 @@
                     .column.is-3
                       .airline-logo.airline-logo-overview(:class="isTabletSize || isPhoneSize ? 'is-mobile' : ''") {{ flight.airline.callsign }}
                     .column.is-7-desktop.is-relative
-                      p.flight-duration {{ flight.travelTime + ' min' }}
+                      p.flight-duration {{ flight.travelTime | inMinutes }}
                       .is-vh-centered
                         .flight-start
                           .flight-location {{ getDisplayedInputDstStr(flight.startLocation.city, flight.startLocation.iata) }}
@@ -113,7 +113,7 @@
                         .flight-end
                           .flight-location {{ getDisplayedInputDstStr(flight.endLocation.city, flight.endLocation.iata) }}
                           .flight-time {{ flight.endDate | momentjs('DD.MM.YY - HH:mm')}}
-                            sup(v-if="!isSameDay(flight.startDate, flight.travelTime, flight.travelDate)") +1
+                            sup(v-if="!isSameDay(flight.startDate, flight.travelTime, flight.endDate)") +1
               .column.is-3.is-vh-centered.is-vertically-stacked.flight-route-results__cta(:class="isPhoneSize ? 'is-mobile' : 'is-desktop'")
                 .flight-route-price {{ flightRouteResult.price | currency}}
                 button.button.is-medium.is-primary(@click="openFlightRouteDetailsModal(flightRouteResult)") Details
@@ -134,11 +134,11 @@
                 .column
                   .columns.is-mobile.flight-segment-info.is-vertical-centered.is-multiline(v-for="(flight, index) in flightRouteModalData.flights")
                     .column.is-12.has-text-left
-                      .flight-date {{ flight.travelDate | momentjs('DD.MM.YYYY') }}
+                      .flight-date {{ flight.startDate | momentjs('DD.MM.YYYY') }}
                     .column.is-3.has-text-left
                       .airline-logo.airline-logo-overview(:class="isTabletSize || isPhoneSize ? 'is-mobile' : ''") {{ flight.airline.callsign }}
                     .column.is-relative.is-9
-                      p.flight-duration {{ flight.travelTime + ' min' }}
+                      p.flight-duration {{ flight.travelTime | inMinutes }}
                       .is-vh-centered
                         .flight-start
                           .flight-location {{ flight.startLocation.city }}
@@ -190,6 +190,7 @@ import moment from 'moment';
 
 import * as Helpers from '../lib/helpers';
 import BNotification from 'buefy/src/components/notification/Notification';
+import { FlightRoute } from '../lib/model';
 
 export default {
   name: 'home',
@@ -279,7 +280,7 @@ export default {
   },
   methods: {
     onOpenBookingWizard(flightRouteData) {
-      localStorage.setItem("flightRouteData", JSON.stringify(flightRouteData));
+      Helpers.saveToLocalStorage(Helpers.LocalStorageKeys.FLIGHTROUTE, flightRouteData);
       this.$router.push({ name: 'booking' })
     },
 
@@ -293,13 +294,13 @@ export default {
 
     // check if start and end date are on the same day,
     // otherwise show "+1" to indicate that
-    isSameDay(startTimeStr, travelTime, travelDateStr) {
-      let startTimeMoment = moment(startTimeStr, 'hh:mm A');
-      let travelDate = new Date(travelDateStr);
+    isSameDay(startDateStr, travelTime, endDateStr) {
+      let startTimeMoment = moment(startDateStr);
+      let endDate = new Date(endDateStr);
       let endDateMoment;
 
-      let startDateMoment = moment({ years: travelDate.getFullYear(), months: travelDate.getMonth(), days: travelDate.getDay(), hours: startTimeMoment.hours(), minutes: startTimeMoment.minutes()});
-      endDateMoment = moment(startDateMoment).add(travelTime, 'minutes');
+      let startDateMoment = moment({ years: endDate.getFullYear(), months: endDate.getMonth(), days: endDate.getDay(), hours: startTimeMoment.hours(), minutes: startTimeMoment.minutes()});
+      endDateMoment = moment(startDateMoment).add(travelTime / 1000 / 60, 'minutes');
       return startDateMoment.isSame(endDateMoment, 'days');
     },
 
@@ -316,13 +317,15 @@ export default {
     openFlightRouteDetailsModal(flightRouteResult) {
       this.flightRouteModalData = flightRouteResult;
       this.isFlightModalActive = true;
+
+      console.log(JSON.stringify(flightRouteResult.toJSON(), null, 4));
     },
 
     getTimeOfStay(flights, index) {
       if (flights[index + 1] === undefined) return 0;
 
-      let start = moment(flights[index].travelDate);
-      let end = moment(flights[index + 1].travelDate);
+      let start = moment(flights[index].startDate);
+      let end = moment(flights[index + 1].startDate);
 
       return Math.round(moment.duration(end.diff(start)).asDays());
     },
@@ -469,18 +472,16 @@ export default {
     // check if time is in certain time range
     timeInTimespan(time, timespan) {
       let today = new Date();
+      let travelTime = new Date(time);
       const timespanTemp = [timespan[0].split(':'), timespan[1].split(':')];
       //const timeTemp = time.split(':');
 
       const startDate = new Date(today.getFullYear(), today.getMonth(), today.getDay(), parseInt(timespanTemp[0][0], 10), parseInt(timespanTemp[0][1]), 10);
       const endDate = new Date(today.getFullYear(), today.getMonth(), today.getDay(), parseInt(timespanTemp[1][0], 10), parseInt(timespanTemp[1][1]), 10);
-      const travelDateAsDate = new Date(today.getFullYear(), today.getMonth(), today.getDay(), time.getHours, time.getMinutes);
+      const travelDateAsDate = new Date(today.getFullYear(), today.getMonth(), today.getDay(), travelTime.getHours(), travelTime.getMinutes());
       const travelDateAsMoment = moment(travelDateAsDate);
 
       return travelDateAsMoment.isBetween(moment(startDate), moment(endDate), 'minutes', '[]');
-      //const travelDate = new Date(2012, 10, 2, parseInt(timeTemp[0], 10), parseInt(timeTemp[1]), 10);
-
-      return startDate <= travelDate && endDate >= travelDate;
     },
 
     onResize(event) {
@@ -508,21 +509,18 @@ export default {
       return `${city} (${iata})`;
     },
 
-    searchFlightRoutes() {
-      var self = this;
-
+    // check if flight dates are in the exact order respective trip sections order
+    checkValidityOfFlightDates() {
       // check if dates are valid
       let startDate, endDate;
       let errorsOccurred = false;
 
       for (let i = 0; i < this.inputFlightRoute.length - 1; i++) {
         // avoid array out-of-bound exceptions
-        if (self.inputFlightRoute.length === i+1) break;
+        if (this.inputFlightRoute.length === i+1) break;
 
-        startDate = new Date(self.inputFlightRoute[i].travelDate);
-        endDate = new Date(self.inputFlightRoute[i+1].travelDate);
-
-        //console.log("Start Date:" + startDate + " End Date: " + endDate);
+        startDate = new Date(this.inputFlightRoute[i].travelDate);
+        endDate = new Date(this.inputFlightRoute[i+1].travelDate);
 
         if (moment(startDate).isAfter(moment(endDate))) {
           errorsOccurred = true;
@@ -531,7 +529,13 @@ export default {
       }
 
       this.flightDatesHaveErrors = errorsOccurred;
-      if (errorsOccurred) return;
+    },
+
+    searchFlightRoutes() {
+      var self = this;
+
+      this.checkValidityOfFlightDates();
+      if (this.flightDatesHaveErrors) return;
 
       this.isLoadingResults = true;
 
@@ -600,7 +604,7 @@ export default {
         // now re-enable the reactivity of the data so that the template gets updated
         var refreshedData = []
         for (var result of sortedData) {
-          var refreshedResult = Helpers.ResponseJSONToFlightRoute({...result})
+          var refreshedResult = FlightRoute.fromJSON(result.toJSON());
           refreshedData.push(refreshedResult)
         }
         return refreshedData
@@ -656,6 +660,9 @@ export default {
     },
     momentjs: (val, format) => {
       return moment(val).format(format);
+    },
+    inMinutes: (val) => {
+      return (val / 1000 / 60) + ' min';
     }
   },
 
@@ -898,6 +905,6 @@ body.no-scrolling
 .notification-flight-error
   border-radius: 0px
   &.hidden
-    visibility: hidden
+    display: none
 
 </style>

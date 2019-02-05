@@ -23,7 +23,7 @@
                       .column.is-2
                         .airline-logo.airline-logo-overview(:class="isTabletSize || isPhoneSize ? 'is-mobile' : ''") {{ flight.airline.callsign }}
                       .column.is-relative.is-10
-                        p.flight-duration {{ flight.travelTime + ' min' }}
+                        p.flight-duration {{ flight.travelTime | inMinutes }}
                         .is-vh-centered
                           .flight-start
                             .flight-location {{ getDisplayedInputDstStr(flight.startLocation.city, flight.startLocation.iata) }}
@@ -150,7 +150,7 @@
             .container.has-text-left
               .title Flugdaten
               .final-step__flight(v-for="flight in flightRouteData.flights")
-                h3 {{ moment(flight.travelDate).format('DD.MM.YY') }}
+                h3 {{ moment(flight.startDate).format('DD.MM.YY') }}
                 p {{ getDisplayedInputDstStr(flight.startLocation.city, flight.startLocation.iata) }}
                   span.fas.fa-plane.final-step__plane-icon
                   | {{ getDisplayedInputDstStr(flight.endLocation.city, flight.endLocation.iata) }}
@@ -190,6 +190,7 @@ import { required, numeric, email } from 'vuelidate/lib/validators';
 import moment from 'moment';
 import BNotification from 'buefy/src/components/notification/Notification.vue';
 import * as Helpers from '../lib/helpers';
+import { FlightRoute } from '../lib/model';
 
 const today = new Date();
 
@@ -360,8 +361,8 @@ export default {
     getTimeOfStay(flights, index) {
       if (flights[index + 1] === undefined) return 0;
 
-      const start = moment(flights[index].travelDate);
-      const end = moment(flights[index + 1].travelDate);
+      const start = moment(flights[index].startDate);
+      const end = moment(flights[index + 1].endDate);
 
       return Math.round(moment.duration(end.diff(start)).asDays());
     },
@@ -398,18 +399,12 @@ export default {
     },
     // update trip sections data according to data model (see composition model uml)
     flightRouteToTripDetails(flightRouteData) {
-      const prunedFlightRouteData = flightRouteData;
-      for (const flight of prunedFlightRouteData.flights) {
-        if (flight.travelDate !== undefined) delete flight.travelDate;
-        for (const flightSegment of flight.flightSegments) {
-          if (flightSegment.startLocation.input !== undefined) delete flightSegment.startLocation.input;
-          if (flightSegment.endLocation.input !== undefined) delete flightSegment.endLocation.input;
-        }
-      }
+      const prunedFlightRouteData = flightRouteData.toJSON();
 
       for (let i = 0; i < this.tripSectionsData.sections.length; i++) {
         this.$set(this.tripSectionsData.sections[i], 'transport', {
           type: 'plane',
+          price: prunedFlightRouteData.price,
           flights: [prunedFlightRouteData.flights[i], prunedFlightRouteData.flights[i + 1]],
         });
       }
@@ -433,6 +428,7 @@ export default {
       return concealedNumber;
     },
     momentjs: (val, format) => moment(val).format(format),
+    inMinutes: (val) => (val / 1000 / 60) + ' min',
   },
   beforeCreate() {
     this.moment = moment;
@@ -445,7 +441,7 @@ export default {
     if (localTripData !== null) this.tripSectionsData = localTripData;
 
     const localFlightRouteData = Helpers.getFromLocalStorage(Helpers.LocalStorageKeys.FLIGHTROUTE);
-    if (localFlightRouteData !== null) this.flightRouteData = Helpers.JSONToFlightRoute(localFlightRouteData);
+    if (localFlightRouteData !== null) this.flightRouteData = FlightRoute.fromJSON(localFlightRouteData);
   },
   mounted() {
     // register event listeners for resize event

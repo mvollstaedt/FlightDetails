@@ -1,44 +1,113 @@
 /* eslint-disable import/prefer-default-export,no-trailing-spaces,no-underscore-dangle,no-underscore-dangle */
 export class FlightSegment {
-  constructor(startTime, startLocation, endTime, endLocation) {
-    this.startTime = startTime;
-    this.endTime = endTime;
+  constructor(startDate, startLocation, endDate, endLocation, flightNo = '', cabinClass = '', airline = '') {
+    this._startDate = startDate;
+    this._endDate = endDate;
 
-    this.startLocation = startLocation;
-    this.endLocation = endLocation;
+    this._startLocation = startLocation;
+    this._endLocation = endLocation;
+
+    this._flightNo = flightNo;
+    this._cabinClass = cabinClass;
+    this._airline = airline;
   }
 
-  set airline(airline) {
-    this.airline = airline;
+  get flightTime() {
+    return Math.abs(new Date(this.endDate).getTime() - new Date(this.startDate).getTime());
   }
 
   get airline() {
-    return this.airline;
+    return this._airline;
   }
 
-  set segmentNo(segmentNo) {
-    this.segmentNo = segmentNo;
+  set airline(airline) {
+    this._airline = airline;
+  }
+
+  get startDate() {
+    return this._startDate;
+  }
+
+  get endDate() {
+    return this._endDate;
+  }
+
+  get startLocation() {
+    return this._startLocation;
+  }
+
+  get endLocation( ){
+    return this._endLocation;
+  }
+
+  get cabinClass() {
+    return this._cabinClass;
+  }
+
+  set cabinClass(cabinClass) {
+    this._cabinClass = cabinClass;
+  }
+
+  get flightNo() {
+    return this._flightNo;
+  }
+
+  set flightNo(flightNo) {
+    this._flightNo = flightNo;
   }
 
   get segmentNo() {
-    return this.segmentNo;
+    return this._segmentNo;
+  }
+
+  set segmentNo(segmentNo) {
+    this._segmentNo = segmentNo;
+  }
+
+  toJSON() {
+    return {
+      startDate: this._startDate,
+      endDate: this._endDate,
+      startLocation: {
+        city: this._startLocation.city,
+        iata: this._startLocation.iata
+      },
+      endLocation: {
+        city: this._endLocation.city,
+        iata: this._endLocation.iata
+      },
+      flightNo: this._flightNo,
+      cabinClass: this._cabinClass,
+      airline: this._airline,
+      segmentNo: this._segmentNo,
+      flightTime: this.flightTime
+    }
+  }
+
+  static fromJSON(jsonObj) {
+    if (jsonObj === null) return null;
+
+    let flightSegment = new FlightSegment(jsonObj.startDate, jsonObj.startLocation,
+      jsonObj.endDate, jsonObj.endLocation, jsonObj.flightNo, jsonObj.cabinClass, jsonObj.airline);
+    return flightSegment;
   }
 }
 
 export class Flight {
+  constructor() {
+    this._flightSegments = [];
+  }
 
-  constructor(startDate, endDate, flightNo, airline) {
-    this.startDate = startDate;
-    this.endDate = endDate;
+  get travelTime() {
+    return Math.abs(new Date(this.endDate).getTime() - new Date(this.startDate).getTime());
+  }
 
-    this.flightNo = flightNo;
-    this.airline = airline;
-
-    this.cabinClass = 'Economy';
-    this.flightSegments = [];
-
-    this.travelDate = new Date();
-    this.travelTime = 0;
+  get flightTime() {
+    let flightTime = 0;
+    for (const flightSegment of this._flightSegments) {
+      flightTime += flightSegment.flightTime;
+    }
+    return flightTime;
   }
 
   get startLocation() {
@@ -46,7 +115,19 @@ export class Flight {
   }
 
   get endLocation() {
-    return this.flightSegments[this.flightSegments.length-1].endLocation;
+    return this.flightSegments[this.flightSegments.length - 1].endLocation;
+  }
+
+  get startDate() {
+    return this.flightSegments[0].startDate;
+  }
+
+  get endDate() {
+    return this.flightSegments[this.flightSegments.length - 1].endDate;
+  }
+
+  get airline() {
+    return this.flightSegments[0].airline;
   }
 
   get stopoverCount() {
@@ -57,8 +138,34 @@ export class Flight {
     return count;
   }
 
+  get flightSegments() {
+    return this._flightSegments;
+  }
+
   addFlightSegment(flightSegment) {
-    this.flightSegments.push(flightSegment);
+    let newFlightSegment = flightSegment;
+    newFlightSegment.segmentNo = this.flightSegments.length;
+    this._flightSegments.push(flightSegment);
+  }
+
+  toJSON() {
+    return {
+      flightTime: this.flightTime,
+      travelTime: this.travelTime,
+      startDate: this.startDate,
+      endDate: this.endDate,
+      flightSegments: this._flightSegments.map(flightSegment => flightSegment.toJSON()),
+    }
+  }
+
+  static fromJSON(jsonObj) {
+    if (jsonObj === null) return null;
+
+    let flight = new Flight();
+    for(const flightSegment of jsonObj.flightSegments) {
+      flight.addFlightSegment(FlightSegment.fromJSON(flightSegment));
+    }
+    return flight;
   }
 }
 
@@ -74,9 +181,21 @@ export class FlightRoute {
 
   get travelTime() {
     let totalTravelTime = 0;
-    for (var flight of this.flights) {
-      totalTravelTime = totalTravelTime + flight.travelTime;
+    for (const flight of this.flights) {
+      totalTravelTime += flight.travelTime;
     }
     return totalTravelTime;
+  }
+
+  toJSON() {
+    return {
+      price: this.price,
+      flights: this.flights.map(flight => flight.toJSON())
+    }
+  }
+
+  static fromJSON(jsonObj) {
+    if (jsonObj === null) return null;
+    return new FlightRoute(jsonObj.flights.map(flight => Flight.fromJSON(flight)), jsonObj.price);
   }
 }

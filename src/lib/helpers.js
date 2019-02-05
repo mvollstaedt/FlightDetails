@@ -12,7 +12,9 @@ function getRandTravelTime(min, max) {
 
 function genPrice(travelTime) {
   // 150 euros per hour
-  return Math.round(1200 - (travelTime / 60 * 150));
+  let price = Math.round(1200 - (travelTime / 60 * 150));
+  if (price <= 0) price = 300;
+  return price;
 }
 
 function genFlightNo(icao, count = 5) {
@@ -20,7 +22,7 @@ function genFlightNo(icao, count = 5) {
   const digits = '0123456789';
   const countOfPositions = count;
 
-  for (var i = 0; i < countOfPositions; i++) {
+  for (let i = 0; i < countOfPositions; i++) {
     flightNo += digits.charAt(Math.floor(Math.random() * digits.length));
   }
 
@@ -37,16 +39,21 @@ export function getTripSectionsInitialData() {
 
   return {
     startDate: today,
-    endDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 5),
+    endDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 20),
     sections: [
       {
         location: 'Madrid',
         startDate: today,
         endDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 15),
       },
-    ]
+      {
+        location: 'Barcelona',
+        startDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 15),
+        endDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 20),
+      },
+    ],
 
-  }
+  };
 }
 
 export function queryFlightRoutes(flightRouteParams) {
@@ -74,12 +81,12 @@ export function queryFlightRoutes(flightRouteParams) {
 
         const randTravelTime = getRandTravelTime(60, 180);
 
-        let startTimeAsMoment = moment({
+        const startTimeAsMoment = moment({
           years: new Date(flightQuery.travelDate).getFullYear(),
           months: new Date(flightQuery.travelDate).getMonth(),
           days: new Date(flightQuery.travelDate).getDate(),
-          hours: depTime.split(":")[0],
-          minutes: depTime.split(":")[1]
+          hours: depTime.split(':')[0],
+          minutes: depTime.split(':')[1],
         });
 
         flights[i].push({
@@ -118,20 +125,20 @@ export function queryFlightRoutes(flightRouteParams) {
     flightAlternatives.push(flightAltObj);
   }
 
-  return JSON.stringify(flightAlternatives);
+  // check for validity of flights of a flight route
+  let results = checkValidityOfResults(flightAlternatives);
+  return JSON.stringify(results);
 }
 
 // parses from http response JSON format to flight route model format
 export function ResponseJSONToFlightRoute(flightRouteJSON) {
-  let flightRouteTmp = new FlightRoute();
+  const flightRouteTmp = new FlightRoute();
   flightRouteTmp.price = flightRouteJSON.price;
 
   for (const flight of flightRouteJSON.flights) {
-    let flightTmp = new Flight(flight.startDate, flight.endDate, flight.flightNo, flight.airline);
-    flightTmp.travelTime = flight.travelTime;
-    flightTmp.travelDate = flight.travelDate;
+    const flightTmp = new Flight();
 
-    let flightSegmentTmp = new FlightSegment(flight.startTime, flight.startLocation, flight.endTime, flight.endLocation);
+    const flightSegmentTmp = new FlightSegment(flight.startDate, flight.startLocation, flight.endDate, flight.endLocation, flight.flightNo, flight.cabinClass, flight.airline);
     flightTmp.addFlightSegment(flightSegmentTmp);
 
     flightRouteTmp.addFlight(flightTmp);
@@ -139,44 +146,50 @@ export function ResponseJSONToFlightRoute(flightRouteJSON) {
   return flightRouteTmp;
 }
 
-// parses from internal flight route representation to flight route model
-export function JSONToFlightRoute(flightRouteJSON) {
-  let flightRouteTmp = new FlightRoute();
-  flightRouteTmp.price = flightRouteJSON.price;
+function checkValidityOfResults(flightAlternatives) {
+  const prunedFlightAlternatives = [];
+  for (const flightRoute of flightAlternatives) {
+    let resultIsValid = true;
 
-  for (const flight of flightRouteJSON.flights) {
-    let flightTmp = new Flight(flight.startDate, flight.endDate, flight.flightNo, flight.airline);
-    flightTmp.travelTime = flight.travelTime;
-    flightTmp.travelDate = flight.travelDate;
+    for (let i = 0; i < flightRoute.flights.length; i++) {
+      if (flightRoute.flights[i + 1] === undefined) break;
 
-    let flightSegmentTmp = new FlightSegment(flight.startTime, flight.flightSegments[0].startLocation, flight.endTime, flight.flightSegments[0].endLocation);
-    flightTmp.addFlightSegment(flightSegmentTmp);
+      console.log(moment(flightRoute.flights[i].endDate));
+      console.log(moment(flightRoute.flights[i + 1].startDate));
 
-    flightRouteTmp.addFlight(flightTmp);
+      // if end date of previous flight comes after start date of next flight the whole
+      // flight route is rendered invalid
+      if (moment(flightRoute.flights[i].endDate).isAfter(moment(flightRoute.flights[i + 1].startDate))) {
+        resultIsValid = false;
+        break;
+      }
+    }
+
+    if (resultIsValid) prunedFlightAlternatives.push(flightRoute);
   }
-  return flightRouteTmp;
+  console.log(prunedFlightAlternatives);
+  return prunedFlightAlternatives;
 }
 
 // find out whether an object is empty
 export function isEmpty(obj) {
-
   // null and undefined are "empty"
   if (obj == null) return true;
 
   // Assume if it has a length property with a non-zero value
   // that that property is correct.
-  if (obj.length > 0)    return false;
-  if (obj.length === 0)  return true;
+  if (obj.length > 0) return false;
+  if (obj.length === 0) return true;
 
   // If it isn't an object at this point
   // it is empty, but it can't be anything *but* empty
   // Is it empty?  Depends on your application.
-  if (typeof obj !== "object") return true;
+  if (typeof obj !== 'object') return true;
 
   // Otherwise, does it have any properties of its own?
   // Note that this doesn't handle
   // toString and valueOf enumeration bugs in IE < 9
-  for (var key in obj) {
+  for (const key in obj) {
     if (hasOwnProperty.call(obj, key)) return false;
   }
 
@@ -196,11 +209,9 @@ export function relevantTripDetailsChanged(oldTripSections, newTripSections) {
 
   // check relevant details in sections
   for (const oldSection of oldTripSections.sections) {
-    const equivalentSections = newTripSections.sections.filter((newSection) => {
-      return (oldSection.location === newSection.location
+    const equivalentSections = newTripSections.sections.filter(newSection => (oldSection.location === newSection.location
           && moment(oldSection.startDate).isSame(moment(newSection.startDate))
-          && moment(oldSection.endDate).isSame(moment(newSection.endDate)));
-    });
+          && moment(oldSection.endDate).isSame(moment(newSection.endDate))));
 
     // if there is no equivalent section
     if (equivalentSections === null || equivalentSections.length === 0) return true;
@@ -225,4 +236,4 @@ export function removeFromLocalStorage(key) {
 export const LocalStorageKeys = {
   FLIGHTROUTE: 'flightRouteData',
   TRIPSECTIONS: 'tripSectionsData',
-}
+};
