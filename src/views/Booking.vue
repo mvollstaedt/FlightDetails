@@ -6,16 +6,16 @@
           a.button.is-pulled-left.is-transparent.btn-back(@click="onUserCancelBooking")
             span(style="font-size: 1.8rem;")
               i.fas.fa-chevron-left
-          h1.title Booking
+          h1.title Buchung
             |
             i.fas.fa-clipboard.title-icon
-          h2.subtitle Only a few steps left
+          h2.subtitle Gleich Geschafft
     .form-wizard
       form-wizard(title="", subtitle="", stepSize="xs", color="#7957d5", errorColor="#ff3860", finishButtonText="Complete Booking", ref="wizard")
         tab-content(title='Options' :before-change="() => validateStep('options')")
           section.section.trip-section-content(v-if="!isEmpty(flightRouteData)")
             .container
-              .title.has-text-left Flight Data
+              .title.has-text-left Flugdaten
               .trip-section-wrapper.has-box-shadow
                 .columns
                   .column
@@ -36,17 +36,17 @@
                         .trip-section-waiting-time {{ 'Aufenthaltsdauer: ' + getTimeOfStay(flightRouteData.flights, index) + ' Tage' }}
           section.section.further-options-content
             .container
-              .title.has-text-left Further Options
-              b-field( horizontal label="Luggage Option")
+              .title.has-text-left Weitere Optionen
+              b-field( horizontal label="Gepäckoption")
                 b-select(v-model="model.options.luggageOption")
                   option(v-for="option in luggageOptions", :value="option.id", :key="option.id") {{ option.id }}
-              b-field( horizontal label="Seat Reservation", class="has-text-left")
+              b-field( horizontal label="Sitzplatzreservierung", class="has-text-left")
                 b-switch(v-model="model.options.seatReservation")
 
-        tab-content(title='Personal Details', :before-change="() => validateStep('personalDetails')")
+        tab-content(title='Persönliche Angaben', :before-change="() => validateStep('personalDetails')")
           .section.has-text-left
             .container
-              .title Personal Details
+              .title Persönliche Daten
               .field.is-horizontal
                 .field-label.is-normal
                   label.label Name
@@ -56,13 +56,13 @@
                       input.input(type="text" placeholder="Last Name", v-model.trim="model.personalDetails.lastName", @input="$v.model.personalDetails.lastName.$touch()", :class="{'is-danger': $v.model.personalDetails.lastName.$error}")
                       span.icon.is-small.is-right(v-if="$v.model.personalDetails.lastName.$error")
                         i.fas.fa-exclamation-triangle
-                    p.help.is-danger(v-if="$v.model.personalDetails.lastName.$error") The last name is invalid
+                    p.help.is-danger(v-if="$v.model.personalDetails.lastName.$error") Der Nachname ist invalide
                   .field
                     p.control.is-expanded.has-icons-right
                       input.input(type="text" placeholder="First Name", v-model.trim="model.personalDetails.firstName", @input="$v.model.personalDetails.firstName.$touch()", :class="{'is-danger': $v.model.personalDetails.firstName.$error}")
                       span.icon.is-small.is-right(v-if="$v.model.personalDetails.firstName.$error")
                         i.fas.fa-exclamation-triangle
-                    p.help.is-danger(v-if="$v.model.personalDetails.firstName.$error") The first name is invalid
+                    p.help.is-danger(v-if="$v.model.personalDetails.firstName.$error") Der Vorname ist invalide
               .field.is-horizontal
                 .field-label.is-normal
                   label.label Tel
@@ -72,17 +72,17 @@
                       input.input(type="tel" placeholder="(+49) 12345678", v-model.trim="model.personalDetails.tel", @input="$v.model.personalDetails.tel.$touch()", :class="{'is-danger': $v.model.personalDetails.tel.$error}")
                       span.icon.is-small.is-right(v-if="$v.model.personalDetails.tel.$error")
                         i.fas.fa-exclamation-triangle
-                    p.help.is-danger(v-if="$v.model.personalDetails.tel.$error") The telephone number is invalid
+                    p.help.is-danger(v-if="$v.model.personalDetails.tel.$error") Die Telefonnummer ist invalide
               .field.is-horizontal
                 .field-label.is-normal
-                  label.label Date of Birth
+                  label.label Geburtsdatum
                 .field-body
                   .field
                     p.control.is-expanded.has-icons-right
                       input.input(type="date" placeholder="2018-01-01", min="1940-01-01", max="2000-01-01", v-model.trim="model.personalDetails.birthdate", @input="$v.model.personalDetails.birthdate.$touch()", @change="$v.model.personalDetails.birthdate.$touch()", :class="{'is-danger': $v.model.personalDetails.birthdate.$error}")
                       span.icon.is-small.is-right(v-if="$v.model.personalDetails.birthdate.$error")
                         i.fas.fa-exclamation-triangle
-                    p.help.is-danger(v-if="$v.model.personalDetails.birthdate.$error") The birthdate is invalid
+                    p.help.is-danger(v-if="$v.model.personalDetails.birthdate.$error") Das Geburtsdatum ist invalide
               .field.is-horizontal
                 .field-label.is-normal
                   label.label Email
@@ -92,63 +92,63 @@
                       input.input(type="email" placeholder="max.muster@gmx.de", v-model.trim="model.personalDetails.email", @input="$v.model.personalDetails.email.$touch()", :class="{'is-danger': $v.model.personalDetails.email.$error}")
                       span.icon.is-small.is-right(v-if="$v.model.personalDetails.email.$error")
                         i.fas.fa-exclamation-triangle
-                    p.help.is-danger(v-if="$v.model.personalDetails.email.$error") The email address is invalid
-        tab-content(title='Payment Details')
+                    p.help.is-danger(v-if="$v.model.personalDetails.email.$error") Die Email-Adresse ist invalide
+        tab-content(title='Zahlungsinformationen')
           .section.has-text-left
             .container
-              .title Payment Details
+              .title Zahlungsinformationen
               b-notification
-                | At this moment, only credit card is accepted as payment method. We apologize for any inconvenience.
+                | Derzeit akzeptieren wir nur Kreditkarten als Zahlungsmöglichkeit. Wir entschuldigen uns für jegliche Unannehmlichkeiten.
               .field.is-horizontal
                 .field-label.is-normal
-                  label.label Name of Cardholder
+                  label.label Name des Kartenbesitzers
                 .field-body
                   .field
                     p.control.is-expanded.has-icons-right
                       input.input(type="text" placeholder="Last Name", v-model.trim="model.paymentDetails.lastName", @input="$v.model.paymentDetails.lastName.$touch()", :class="{'is-danger': $v.model.paymentDetails.lastName.$error}")
                       span.icon.is-small.is-right(v-if="$v.model.paymentDetails.lastName.$error")
                         i.fas.fa-exclamation-triangle
-                    p.help.is-danger(v-if="$v.model.paymentDetails.lastName.$error") The last name is invalid
+                    p.help.is-danger(v-if="$v.model.paymentDetails.lastName.$error") Der Nachname ist invalide
                   .field
                     p.control.is-expanded.has-icons-right
                       input.input(type="text" placeholder="First Name", v-model.trim="model.paymentDetails.firstName", @input="$v.model.paymentDetails.firstName.$touch()", :class="{'is-danger': $v.model.paymentDetails.firstName.$error}")
                       span.icon.is-small.is-right(v-if="$v.model.paymentDetails.firstName.$error")
                         i.fas.fa-exclamation-triangle
-                    p.help.is-danger(v-if="$v.model.paymentDetails.firstName.$error") The first name is invalid
+                    p.help.is-danger(v-if="$v.model.paymentDetails.firstName.$error") Der Vorname ist invalide
               .field.is-horizontal
                 .field-label.is-normal
-                  label.label Card Number
+                  label.label Kartennummer
                 .field-body
                   .field
                     p.control.is-expanded.has-icons-right
                       input.input(type="number" placeholder="0123456789", v-model.trim="model.paymentDetails.cardNumber", @input="$v.model.paymentDetails.cardNumber.$touch()", :class="{'is-danger': $v.model.paymentDetails.cardNumber.$error}")
                       span.icon.is-small.is-right(v-if="$v.model.paymentDetails.cardNumber.$error")
                         i.fas.fa-exclamation-triangle
-                    p.help.is-danger(v-if="$v.model.paymentDetails.cardNumber.$error") The card number is invalid
+                    p.help.is-danger(v-if="$v.model.paymentDetails.cardNumber.$error") Die Kartennummer ist invalide
               .field.is-horizontal
                 .field-label.is-normal
-                  label.label Date of Expiry
+                  label.label Ablaufdatum
                 .field-body
                   .field
                     p.control.is-expanded.has-icons-right
                       input.input(type="text" placeholder="03/18", v-model.trim="model.paymentDetails.expirationDate", @input="$v.model.paymentDetails.expirationDate.$touch()", :class="{'is-danger': $v.model.paymentDetails.expirationDate.$error}")
                       span.icon.is-small.is-right(v-if="$v.model.paymentDetails.expirationDate.$error")
                         i.fas.fa-exclamation-triangle
-                    p.help.is-danger(v-if="$v.model.paymentDetails.expirationDate.$error") The expiration date is invalid
+                    p.help.is-danger(v-if="$v.model.paymentDetails.expirationDate.$error") Das Ablaufdatum ist invalide
               .field.is-horizontal
                 .field-label.is-normal
-                  label.label Security Code
+                  label.label Sicherheitscode
                 .field-body
                   .field
                     p.control.is-expanded.has-icons-right.security-code-input
                       input.input(type="number" placeholder="123", v-model.trim="model.paymentDetails.securityCode", @input="$v.model.paymentDetails.securityCode.$touch()", :class="{ 'is-danger': $v.model.paymentDetails.securityCode.$error}")
                       span.icon.is-small.is-right(v-if="$v.model.paymentDetails.securityCode.$error")
                         i.fas.fa-exclamation-triangle
-                    p.help.is-danger(v-if="$v.model.paymentDetails.securityCode.$error") The security code is invalid
-        tab-content(title='Final Step')
+                    p.help.is-danger(v-if="$v.model.paymentDetails.securityCode.$error") Der Sicherheitscode ist invalide
+        tab-content(title='Überprüfung')
           section.section
             .container.has-text-left
-              .title Flight Details
+              .title Flugdaten
               .final-step__flight(v-for="flight in flightRouteData.flights")
                 h3 {{ moment(flight.travelDate).format('DD.MM.YY') }}
                 p {{ getDisplayedInputDstStr(flight.startLocation.city, flight.startLocation.iata) }}
@@ -156,20 +156,20 @@
                   | {{ getDisplayedInputDstStr(flight.endLocation.city, flight.endLocation.iata) }}
           section.section
             .container.has-text-left
-              .title Personal Details
+              .title Persönliche Daten
               .final-step__personal-details(v-for="(val, key) in model.personalDetails")
                 .columns.is-mobile
                   p.column.is-5-mobile.is-2-tablet
-                    b {{ key | splitWords }}
+                    b {{ localiseDE(key) }}
                   p.column.is-6-mobile
                     | {{ val }}
           section.section
             .container.has-text-left
-              .title Payment Details
+              .title Zahlungsinformationen
               .final-step__personal-details(v-for="(val, key) in model.paymentDetails")
                 .columns.is-mobile
                   p.column.is-5-mobile.is-2-tablet
-                    b {{ key | splitWords }}
+                    b {{ localiseDE(key) }}
                   p.column.is-6-mobile(v-if="key === 'cardNumber'")
                     | {{ val | concealNumber }}
                   p.column.is-6-mobile(v-else)
@@ -178,10 +178,10 @@
               .final-step__price {{ '= ' + flightRouteData.price + " €"}}
         template(slot='footer', slot-scope='props')
           .wizard-footer-left
-            wizard-button(v-if='props.activeTabIndex > 0 && !props.isLastStep', :style='props.fillButtonStyle', @click.native='props.prevTab()') Previous
+            wizard-button(v-if='props.activeTabIndex > 0 && !props.isLastStep', :style='props.fillButtonStyle', @click.native='props.prevTab()') Zurück
           .wizard-footer-right
-            wizard-button(v-if='!props.isLastStep', @click.native='props.nextTab()', :style='props.fillButtonStyle') Next
-            wizard-button.finish-button(v-else='', @click.native="onFinishBooking", :style='props.fillButtonStyle') {{props.isLastStep ? 'Buy' : 'Next'}}
+            wizard-button(v-if='!props.isLastStep', @click.native='props.nextTab()', :style='props.fillButtonStyle') Weiter
+            wizard-button.finish-button(v-else='', @click.native="onFinishBooking", :style='props.fillButtonStyle') {{props.isLastStep ? 'Zahlen' : 'Weiter'}}
 
 </template>
 
@@ -190,7 +190,6 @@ import { required, numeric, email } from 'vuelidate/lib/validators';
 import moment from 'moment';
 import BNotification from 'buefy/src/components/notification/Notification.vue';
 import * as Helpers from '../lib/helpers';
-import { FlightRoute } from '../lib/model';
 
 const today = new Date();
 
@@ -209,14 +208,25 @@ export default {
 
       luggageOptions: [
         {
-          id: '1x Carry-On, 1x Drop-Off Baggage (max. 23kg)',
-          description: 'You chose the option to take one carry-on and one drop-off baggage (max. 23kg) with you',
+          id: '1x Handgepäck, 1x Reisegepäck (max. 23kg)',
         },
         {
           id: '1x Carry-On Baggage (max. 10kg)',
-          description: 'You chose the option to take one carry-on and one drop-off baggage (max. 23kg) with you',
         },
       ],
+
+      localesDE: {
+        firstName: 'Vorname',
+        lastName: 'Nachname',
+        tel: 'Tel',
+        birthdate: 'Geburtsdatum',
+        email: 'Email',
+        seatReservation: 'Sitzplatzreservierung',
+        luggageOption: 'Gepäckoption',
+        cardNumber: 'Kartennummer',
+        expirationDate: 'Ablaufdatum',
+        securityCode: 'Sicherheitscode',
+      },
 
       model: {
         personalDetails: {
@@ -288,8 +298,8 @@ export default {
   methods: {
     onUserCancelBooking() {
       this.$dialog.confirm({
-        title: 'Cancel Booking',
-        message: 'Do you really want to cancel the current booking process?',
+        title: 'Buchung abbrechen',
+        message: 'Möchten Sie wirklich den aktuellen Buchungsprozess abbrechen?',
         type: 'is-info',
         onConfirm: () => this.$router.push({ name: 'home' }),
       });
@@ -315,13 +325,18 @@ export default {
       }
       return `${city} (${iata})`;
     },
+    localiseDE(val) {
+      const localisedStr = this.localesDE[val];
+      if (localisedStr === null || localisedStr === '') return val;
+      return localisedStr;
+    },
     isEmpty(obj) {
       Helpers.isEmpty(obj);
     },
     onAbortBooking() {
       this.$dialog.alert({
-        title: 'Trip Changed',
-        message: 'Booking aborted due to trip changes in another component. Redirecting to search page.',
+        title: 'Tripänderung',
+        message: 'Der Buchungsprozess wurde abgebrochen, da am Trip Änderungen in einer anderen Komponente unternommen wurden. Sie werden zurück zur Flugsuche geleitet.',
         type: 'is-warning',
         hasIcon: true,
         icon: 'exclamation-triangle',
@@ -376,14 +391,14 @@ export default {
       window.parent.postMessage(this.tripSectionsData, '*');
 
       this.$toast.open({
-        message: 'Booking was successful.',
+        message: 'Buchung war erfolgreich.',
         type: 'is-success',
       });
       this.$router.push({ name: 'home' });
     },
     // update trip sections data according to data model (see composition model uml)
     flightRouteToTripDetails(flightRouteData) {
-      let prunedFlightRouteData = flightRouteData;
+      const prunedFlightRouteData = flightRouteData;
       for (const flight of prunedFlightRouteData.flights) {
         if (flight.travelDate !== undefined) delete flight.travelDate;
         for (const flightSegment of flight.flightSegments) {
@@ -426,10 +441,10 @@ export default {
     this.model.options.luggageOption = this.luggageOptions[0].id;
 
     // retrieve saved data
-    let localTripData = Helpers.getFromLocalStorage(Helpers.LocalStorageKeys.TRIPSECTIONS);
+    const localTripData = Helpers.getFromLocalStorage(Helpers.LocalStorageKeys.TRIPSECTIONS);
     if (localTripData !== null) this.tripSectionsData = localTripData;
 
-    let localFlightRouteData = Helpers.getFromLocalStorage(Helpers.LocalStorageKeys.FLIGHTROUTE);
+    const localFlightRouteData = Helpers.getFromLocalStorage(Helpers.LocalStorageKeys.FLIGHTROUTE);
     if (localFlightRouteData !== null) this.flightRouteData = Helpers.JSONToFlightRoute(localFlightRouteData);
   },
   mounted() {

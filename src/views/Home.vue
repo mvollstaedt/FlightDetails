@@ -14,7 +14,7 @@
             .flight-no(:class="'flight-no-' + index")
               | {{ index + 1 }}
           .column(ref="input-from", :class="{ 'expanded': selectedInput.type === InputType.INPUT_FROM && selectedInput.rowIndex === index, 'hidden': selectedInput.type !== InputType.INPUT_FROM && selectedInput.rowIndex === index }")
-            b-field(:label="index === 0 ? 'From' : ''")
+            b-field(:label="index === 0 ? 'Von' : ''")
               b-autocomplete(
                 rounded
                 @keyup.enter.native="resetInputSizes"
@@ -27,9 +27,9 @@
                 @select="option => onSelectLocation(flight.startLocation, option)"
                 class="input-location"
                 :id="'input-from-' + index")
-                template(slot="empty") No results found
+                template(slot="empty") Keine Ergebnisse gefunden
           .column(ref="input-to" :class="{ 'expanded': selectedInput.type === InputType.INPUT_TO && selectedInput.rowIndex === index, 'hidden': selectedInput.type !== InputType.INPUT_TO && selectedInput.rowIndex === index }")
-            b-field(:label="index === 0 ? 'To' : ''")
+            b-field(:label="index === 0 ? 'Nach' : ''")
               b-autocomplete(
               rounded
               @click.native="onClickInput(index, InputType.INPUT_TO)"
@@ -41,15 +41,15 @@
               placeholder="End Destination"
               @select="option => onSelectLocation(flight.endLocation, option)"
               class="input-location")
-                template(slot="empty") No results found
+                template(slot="empty") Keine Ergebnisse gefunden
           .column(ref="input-date" :class="{ 'expanded': selectedInput.type === InputType.TRAVELDATE && selectedInput.rowIndex === index, 'hidden': selectedInput.type !== InputType.TRAVELDATE && selectedInput.rowIndex === index }")
-            b-field(:label="index === 0 ? 'When' : ''")
+            b-field(:label="index === 0 ? 'Wann' : ''")
               b-datepicker(
                 @click.native="onClickInput(index, InputType.TRAVELDATE)"
                 @keyup.enter.native="resetInputSizes"
                 @keyup.esc.native="resetInputSizes"
                 rounded
-                placeholder="Click to select..."
+                placeholder="Auswählen ..."
                 :min-date="minDate"
                 :max-date="maxDate"
                 v-model="flight.travelDate")
@@ -66,17 +66,17 @@
         aside.section.menu.filter-options.column.is-3.has-text-left(v-if="searchedFlightRoute.length > 0 && (!isTabletSize && !isPhoneSize)" :class="!isTabletSize && !isPhoneSize ? 'is-desktop' : 'is-mobile'")
           .filter-option
             p.menu-label.filter-option__header
-              | Stopovers
+              | Anzahl Stopover
             .filter-option__body
               b-field
-                b-checkbox(v-model="filters.stopovers" native-value="0") 0 Stopovers
+                b-checkbox(v-model="filters.stopovers" native-value="0") 0 Stopover
               b-field
                 b-checkbox(v-model="filters.stopovers" native-value="1") 1 Stopover
               b-field
-              b-checkbox(v-model="filters.stopovers" native-value="2") 2 Stopovers
+              b-checkbox(v-model="filters.stopovers" native-value="2") 2 Stopover
           .filter-option
             p.menu-label.filter-option__header
-              | Travel Times
+              | Reisezeiten
             .filter-option__body
               b-field(v-for="(travelTime, index) in filters.travelTimes" :key="index"
               v-bind:label="searchedFlightRoute[index].startLocation.city + ' - ' + searchedFlightRoute[index].endLocation.city")
@@ -88,8 +88,8 @@
         section.flight-route-results.section.column.is-offset-1-desktop(v-if="filteredFlightRouteList.length" :class="!isTabletSize && !isPhoneSize ? 'is-desktop' : 'is-mobile'")
           b-field.columns.sort-dropdown.has-text-right
             b-select(rounded placeholder="Sort By Criteria" v-model="sortCriteriaKey")
-              option(value="0") Sort by Price
-              option(value="1") Sort by Duration
+              option(value="0") Nach Preis sortieren
+              option(value="1") Nach Reisedauer sortieren
           paginate(v-if="sortedFlightRouteResults !== []" name="sortedFlightRouteResults", :list="sortedFlightRouteResults", class="paginate-list", tag="div", :refreshCurrentPage="true")
             .columns.flight-route-result.has-box-shadow(v-for="flightRouteResult in paginated('sortedFlightRouteResults')")
               .column.is-9
@@ -156,17 +156,17 @@
         .filter-drawer-content
           .filter-option
             p.menu-label.filter-option__header
-              | Stopovers
+              | Anzahl Stopover
             .filter-option__body
               b-field
-                b-checkbox(v-model="filters.stopovers" native-value="0") 0 Stopovers
+                b-checkbox(v-model="filters.stopovers" native-value="0") 0 Stopover
               b-field
                 b-checkbox(v-model="filters.stopovers" native-value="1") 1 Stopover
               b-field
-              b-checkbox(v-model="filters.stopovers" native-value="2") 2 Stopovers
+              b-checkbox(v-model="filters.stopovers" native-value="2") 2 Stopover
           .filter-option
             p.menu-label.filter-option__header
-              | Travel Times
+              | Reisezeiten
             .filter-option__body
               b-field(v-for="(travelTime, index) in filters.travelTimes" :key="index"
               v-bind:label="searchedFlightRoute[index].startLocation.city + ' - ' + searchedFlightRoute[index].endLocation.city")
