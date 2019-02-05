@@ -37,12 +37,12 @@ export function getTripSectionsInitialData() {
 
   return {
     startDate: today,
-    endDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 10),
+    endDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 5),
     sections: [
       {
         location: 'Madrid',
         startDate: today,
-        endDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 10),
+        endDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 15),
       },
     ]
 

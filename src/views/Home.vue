@@ -7,6 +7,9 @@
             |
             i.fas.fa-plane.title-icon
           h2.subtitle Finde den passenden Flug
+    section.notifications
+      b-notification(type="is-danger" has-icon :class="[{'hidden': !flightDatesHaveErrors}, 'notification-flight-error']" :closable="false")
+        | Flugzeiten in falscher Reihenfolge. Bitte überprüfen Sie Ihre eingegebenen Flugzeiten.
     section.flight-request-form.section#main
       .container
         .columns.is-variable.is-2.is-mobile.has-text-left(v-for="(flight, index) in inputFlightRoute")
@@ -43,16 +46,19 @@
               class="input-location")
                 template(slot="empty") Keine Ergebnisse gefunden
           .column(ref="input-date" :class="{ 'expanded': selectedInput.type === InputType.TRAVELDATE && selectedInput.rowIndex === index, 'hidden': selectedInput.type !== InputType.TRAVELDATE && selectedInput.rowIndex === index }")
-            b-field(:label="index === 0 ? 'Wann' : ''")
+            b-field(:label="index === 0 ? 'Wann' : ''" :type="{'is-danger': flightDatesHaveErrors}")
               b-datepicker(
-                @click.native="onClickInput(index, InputType.TRAVELDATE)"
-                @keyup.enter.native="resetInputSizes"
-                @keyup.esc.native="resetInputSizes"
                 rounded
                 placeholder="Auswählen ..."
                 :min-date="minDate"
                 :max-date="maxDate"
-                v-model="flight.travelDate")
+                v-model="flight.travelDate"
+                :day-names="['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa']"
+                :mobile-native="false"
+                :date-formatter="formatInputDate")
+                button.button.is-primary(@click="flight.travelDate = new Date()")
+                  b-icon(icon="calendar-today")
+                  span Heute
         .columns.is-mobile
           .column
             button.button.is-medium.is-success.is-outlined.is-pulled-right(v-if="isPhoneSize || isTabletSize" @click="onClickFilter")
@@ -257,7 +263,6 @@ export default {
         travelTimes: [],
       },
 
-
       isFlightModalActive: false,
       isFilterDrawerActive: false,
 
@@ -268,12 +273,18 @@ export default {
       sortCriteria: ["price", "duration"],
 
       sortCriteriaKey: "1",
+
+      flightDatesHaveErrors: false,
     };
   },
   methods: {
     onOpenBookingWizard(flightRouteData) {
-      localStorage.setItem("flightRouteData", JSON.stringify(flightRouteData))
+      localStorage.setItem("flightRouteData", JSON.stringify(flightRouteData));
       this.$router.push({ name: 'booking' })
+    },
+
+    formatInputDate(date) {
+      return moment(date).format("DD-MM-YY")
     },
 
     onClickInput(rowIndex, type) {
@@ -499,6 +510,29 @@ export default {
 
     searchFlightRoutes() {
       var self = this;
+
+      // check if dates are valid
+      let startDate, endDate;
+      let errorsOccurred = false;
+
+      for (let i = 0; i < this.inputFlightRoute.length - 1; i++) {
+        // avoid array out-of-bound exceptions
+        if (self.inputFlightRoute.length === i+1) break;
+
+        startDate = new Date(self.inputFlightRoute[i].travelDate);
+        endDate = new Date(self.inputFlightRoute[i+1].travelDate);
+
+        //console.log("Start Date:" + startDate + " End Date: " + endDate);
+
+        if (moment(startDate).isAfter(moment(endDate))) {
+          errorsOccurred = true;
+          break;
+        }
+      }
+
+      this.flightDatesHaveErrors = errorsOccurred;
+      if (errorsOccurred) return;
+
       this.isLoadingResults = true;
 
       // timeout for mocking rtt of http request
@@ -861,5 +895,9 @@ body.no-scrolling
   .hidden
     display: none
 
+.notification-flight-error
+  border-radius: 0px
+  &.hidden
+    visibility: hidden
 
 </style>
