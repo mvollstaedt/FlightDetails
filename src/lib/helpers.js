@@ -126,7 +126,7 @@ export function queryFlightRoutes(flightRouteParams) {
   }
 
   // check for validity of flights of a flight route
-  let results = checkValidityOfResults(flightAlternatives);
+  const results = checkValidityOfResults(flightAlternatives);
   return JSON.stringify(results);
 }
 
@@ -148,14 +148,13 @@ export function ResponseJSONToFlightRoute(flightRouteJSON) {
 
 function checkValidityOfResults(flightAlternatives) {
   const prunedFlightAlternatives = [];
+  let resultIsValid;
+
   for (const flightRoute of flightAlternatives) {
-    let resultIsValid = true;
+    resultIsValid = true;
 
     for (let i = 0; i < flightRoute.flights.length; i++) {
       if (flightRoute.flights[i + 1] === undefined) break;
-
-      console.log(moment(flightRoute.flights[i].endDate));
-      console.log(moment(flightRoute.flights[i + 1].startDate));
 
       // if end date of previous flight comes after start date of next flight the whole
       // flight route is rendered invalid
@@ -167,7 +166,7 @@ function checkValidityOfResults(flightAlternatives) {
 
     if (resultIsValid) prunedFlightAlternatives.push(flightRoute);
   }
-  console.log(prunedFlightAlternatives);
+
   return prunedFlightAlternatives;
 }
 

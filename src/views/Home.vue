@@ -317,8 +317,6 @@ export default {
     openFlightRouteDetailsModal(flightRouteResult) {
       this.flightRouteModalData = flightRouteResult;
       this.isFlightModalActive = true;
-
-      console.log(JSON.stringify(flightRouteResult.toJSON(), null, 4));
     },
 
     getTimeOfStay(flights, index) {
@@ -375,11 +373,11 @@ export default {
       // save trip sections data persistently
       Helpers.saveToLocalStorage(Helpers.LocalStorageKeys.TRIPSECTIONS, tripSectionsData);
 
-      var self = this;
+      const self = this;
 
       let searchData = [];
 
-      var i = 0;
+      let i = 0;
 
       // update flight input mask data
       for (const tripSection of tripSectionsData.sections) {

@@ -11,7 +11,7 @@
             i.fas.fa-clipboard.title-icon
           h2.subtitle Gleich Geschafft
     .form-wizard
-      form-wizard(title="", subtitle="", stepSize="xs", color="#7957d5", errorColor="#ff3860", finishButtonText="Complete Booking", ref="wizard")
+      form-wizard(title="", subtitle="", stepSize="xs", color="#7957d5", errorColor="#ff3860", finishButtonText="Complete Booking", ref="wizard" :class="{'scrolled-down': hasScrolledDown}", @on-change="scrollTop")
         tab-content(title='Options' :before-change="() => validateStep('options')")
           section.section.trip-section-content(v-if="!isEmpty(flightRouteData)")
             .container
@@ -93,7 +93,7 @@
                       span.icon.is-small.is-right(v-if="$v.model.personalDetails.email.$error")
                         i.fas.fa-exclamation-triangle
                     p.help.is-danger(v-if="$v.model.personalDetails.email.$error") Die Email-Adresse ist invalide
-        tab-content(title='Zahlungsinformationen')
+        tab-content(title='Zahlung')
           .section.has-text-left
             .container
               .title Zahlungsinformationen
@@ -199,6 +199,8 @@ export default {
   components: { BNotification },
   data() {
     return {
+      hasScrolledDown: false,
+
       tripSectionsData: {},
       flightRouteData: {},
 
@@ -297,6 +299,9 @@ export default {
     },
   },
   methods: {
+    handleScroll() {
+      this.hasScrolledDown = (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20);
+    },
     onUserCancelBooking() {
       this.$dialog.confirm({
         title: 'Buchung abbrechen',
@@ -333,6 +338,10 @@ export default {
     },
     isEmpty(obj) {
       Helpers.isEmpty(obj);
+    },
+    scrollTop() {
+      document.body.scrollTop = 0;
+      document.documentElement.scrollTop = 0;
     },
     onAbortBooking() {
       this.$dialog.alert({
@@ -444,6 +453,8 @@ export default {
     if (localFlightRouteData !== null) this.flightRouteData = FlightRoute.fromJSON(localFlightRouteData);
   },
   mounted() {
+    // listen to scroll events
+    window.addEventListener('scroll', this.handleScroll);
     // register event listeners for resize event
     window.addEventListener('resize', this.onResize);
     window.dispatchEvent(new Event('resize'));
@@ -451,13 +462,15 @@ export default {
     window.addEventListener('message', this.onUpdateTripSectionsEvent);
   },
   destroyed() {
+    // listen to scroll events
+    window.removeEventListener('scroll', this.handleScroll);
     window.removeEventListener('resize', this.onResize);
     window.removeEventListener('message', this.onUpdateTripSectionsEvent);
   },
 };
 </script>
 
-<style lang="sass" scoped>
+<style lang="sass">
 .button.is-transparent
   background-color: transparent
   border: 0
@@ -471,6 +484,20 @@ export default {
   display: none
 .wizard-navigation
   margin: .2rem 0 2rem 0!important
+
+.scrolled-down
+  .wizard-nav, .wizard-nav-pills
+    position: fixed !important
+    top: 0
+    width: 100%
+    padding: 20px 0
+    background-color: #fff
+    z-index: 1
+    border-bottom: 4px solid rgb(121, 87, 213)
+  .wizard-progress-bar
+    visibility: hidden
+  .wizard-tab-content
+    padding-top: 30px !important
 .wizard-tab-content
   padding-top: 0 !important
 .trip-section-content
