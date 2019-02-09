@@ -10,6 +10,9 @@
     section.notifications
       b-notification(type="is-danger" has-icon :class="[{'hidden': !flightDatesHaveErrors}, 'notification-flight-error']" :closable="false")
         | Flugzeiten in falscher Reihenfolge. Bitte überprüfen Sie Ihre eingegebenen Flugzeiten.
+      b-loading(:is-full-page="true" :active.sync="isLoadingResults" :can-cancel="false")
+
+    // search input mask
     section.flight-request-form.section#main
       .container
         .columns.is-variable.is-2.is-mobile.has-text-left(v-for="(flight, index) in inputFlightRoute")
@@ -55,7 +58,7 @@
                 v-model="flight.travelDate"
                 :day-names="['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa']"
                 :mobile-native="false"
-                :date-formatter="formatInputDate")
+                :date-formatter="dateFormattter")
                 button.button.is-primary(@click="flight.travelDate = new Date()")
                   b-icon(icon="calendar-today")
                   span Heute
@@ -67,8 +70,11 @@
             button.button.is-medium.is-success.is-pulled-right(@click="searchFlightRoutes")
               | Suchen
 
+    // main content on the page
     .container
       .columns
+
+        // filter menu
         aside.section.menu.filter-options.column.is-3.has-text-left(v-if="searchedFlightRoute.length > 0 && (!isTabletSize && !isPhoneSize)" :class="!isTabletSize && !isPhoneSize ? 'is-desktop' : 'is-mobile'")
           .filter-option
             p.menu-label.filter-option__header
@@ -86,11 +92,9 @@
             .filter-option__body
               b-field(v-for="(travelTime, index) in filters.travelTimes" :key="index"
               v-bind:label="searchedFlightRoute[index].startLocation.city + ' - ' + searchedFlightRoute[index].endLocation.city")
-                vue-slider(ref="slider" v-model="filters.travelTimes[index]" v-bind="options" class="traveltimes-slider")
+                vue-slider(ref="slider" v-model="filters.travelTimes[index]" v-bind="sliderOptions" class="traveltimes-slider")
 
-        section
-          b-loading(:is-full-page="true" :active.sync="isLoadingResults" :can-cancel="false")
-
+        // flight route result content
         section.flight-route-results.section.column.is-offset-1-desktop(v-if="filteredFlightRouteList.length" :class="!isTabletSize && !isPhoneSize ? 'is-desktop' : 'is-mobile'")
           b-field.columns.sort-dropdown.has-text-right
             b-select(rounded placeholder="Sort By Criteria" v-model="sortCriteriaKey")
@@ -101,6 +105,8 @@
               .column.is-9
                 .column
                   .columns.is-multiline.is-mobile.flight-info.is-vh-centered(v-for="(flight, flightIndex) in flightRouteResult.flights" :key="flightIndex")
+
+                    // flight route general details
                     .column.is-12.flight-info-overview
                       .columns
                         .column.is-3.has-text-left
@@ -120,6 +126,8 @@
                         .column.is-12-mobile(v-if="flight.stopoverCount > 0")
                           button.button.is-fullwidth.is-transparent(@click="toggleStopoverDetails(flightRouteIndex, flightIndex)")
                             span.fas(:class="[shouldShowStopoverDetails(flightRouteIndex, flightIndex) ? 'fa-caret-up' : 'fa-caret-down']")
+
+                    // flight route stopover details (if there are stopovers)
                     .column.is-12.flight-info-stopovers(v-show="shouldShowStopoverDetails(flightRouteIndex, flightIndex)")
                       .columns.flight-info-stopover(v-for="flightSegment in flight.flightSegments")
                         .column
@@ -149,9 +157,6 @@
                             .column.stopover
                               | Verbindung am Flughafen
 
-
-
-
               .column.is-3.is-vh-centered.is-vertically-stacked.flight-route-results__cta(:class="isPhoneSize ? 'is-mobile' : 'is-desktop'")
                 .flight-route-price {{ flightRouteResult.price | currency}}
                 button.button.is-medium.is-primary(@click="openFlightRouteDetailsModal(flightRouteResult)") Details
@@ -160,6 +165,7 @@
           .column
             | Keine Suchergebnisse gefunden
 
+    // modal showing all flight route details
     b-modal(:active.sync="isFlightModalActive")
       .modal-background
       .modal-card
@@ -227,6 +233,7 @@
           button.button.is-primary(@click="onOpenBookingWizard(flightRouteModalData)")
             | Buchen für {{ flightRouteModalData.price | currency }}
 
+    // mobile filter drawer
     aside.nav-drawer-container.has-text-left(v-if="searchedFlightRoute.length > 0 && (isTabletSize || isPhoneSize)" :class="isFilterDrawerActive ? 'is-active' : ''")
       .filter-drawer
         .filter-drawer-header
@@ -250,7 +257,7 @@
             .filter-option__body
               b-field(v-for="(travelTime, index) in filters.travelTimes" :key="index"
               v-bind:label="searchedFlightRoute[index].startLocation.city + ' - ' + searchedFlightRoute[index].endLocation.city")
-                vue-slider(ref="slider" v-model="filters.travelTimes[index]" v-bind="options" class="traveltimes-slider", :show="drawerAnimFinished")
+                vue-slider(ref="slider" v-model="filters.travelTimes[index]" v-bind="sliderOptions" class="traveltimes-slider", :show="drawerAnimFinished")
 </template>
 
 <script>
@@ -275,6 +282,7 @@ export default {
     BField,
     VueSlider,
   },
+  mixins: [Helpers.mixin],
 
   data() {
 
@@ -282,8 +290,18 @@ export default {
 
     return {
 
+      name: 'Home',
+
       // saves which input field is currently selected (important for resizing fields on mobile)
       selectedInput: {},
+
+      // flight route which is input in the form
+      inputFlightRoute: [],
+
+      // needed for showing enabling autocompletion on typing start/end location
+      flightDestinations: [],
+      filteredFlightDestinations: [],
+      autocompleteActive: false,
 
       InputType: {
         INPUT_FROM: 0,
@@ -291,113 +309,118 @@ export default {
         TRAVELDATE: 2
       },
 
-      name: '',
+      minDate: new Date(today.getFullYear(), today.getMonth(), today.getDate()),
+      maxDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 365),
 
       isLoadingResults: false,
       defaultLoadingDuration: 2000,
 
       paginate: ['sortedFlightRouteResults'],
 
-      autocompleteActive: false,
-
-      SIZE_PHONE: 768,
-      SIZE_TABLET: 1024,
-      isTabletSize: false,
-      isPhoneSize: false,
-
-      minDate: new Date(today.getFullYear(), today.getMonth(), today.getDate()),
-      maxDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 365),
-
-      options: {
+      // options for filter travel time sliders
+      sliderOptions: {
         data: [],
         tooltipDir: 'bottom',
       },
-
-      // used as default start/end location of the trip
-      defaultGermanAirport: {
-        city: "Berlin",
-        iata: "SXF",
-        input: "Berlin (SXF)"
-      },
-
-      flightDestinations: [],
-
-      filteredFlightDestinations: [],
-
-      flightRouteResults: [],
-
-      // flight route which was searched for
-      searchedFlightRoute: [],
-      // flight route which is input in the form
-      inputFlightRoute: [],
-
-      flightRouteModalData: {},
-
+      // saving selected filter options
       filters: {
         stopovers: ['0', '1'],
         travelTimes: [],
       },
-
-      isFlightModalActive: false,
       isFilterDrawerActive: false,
-
       drawerAnimFinished: false,
 
-      tripSections: {},
+      rawFlightRouteResults: [],
 
+      // flight route which was searched for
+      searchedFlightRoute: [],
+
+      // selected flight route to be shown in the modal
+      flightRouteModalData: {},
+      isFlightModalActive: false,
+
+      // all trip sections information
+      tripSectionsData: {},
+
+      // price - 0
+      // duration - 1
       sortCriteria: ["price", "duration"],
-
       sortCriteriaKey: "1",
 
       flightDatesHaveErrors: false,
 
-      showStopoverDetails: [],
+      // saving which stopover details were opened
+      openStopoverDetails: [],
     };
   },
   methods: {
-    isSameDay(startDate, travelTime, endDate) {
-      return Helpers.isSameDay(startDate, travelTime, endDate);
-    },
+    /*
+    show/hide stopover details of specific flight
+     */
     toggleStopoverDetails(flightRouteIndex, flightIndex) {
-      let showDetails = true;
-      let updatedShowStopoverDetails = this.showStopoverDetails;
+      let openDetails = true;
+      let updatedShowStopoverDetails = this.openStopoverDetails;
 
-      for (let i = 0; i < this.showStopoverDetails.length; i++) {
-        if (this.showStopoverDetails[i].flightRouteIndex === flightRouteIndex
-          && this.showStopoverDetails[i].flightIndex === flightIndex) {
+      // update data structure which saves which stopover details are open
+      for (let i = 0; i < this.openStopoverDetails.length; i++) {
+        if (this.openStopoverDetails[i].flightRouteIndex === flightRouteIndex
+          && this.openStopoverDetails[i].flightIndex === flightIndex) {
           updatedShowStopoverDetails.splice(i, 1);
-          showDetails = false;
+          openDetails = false;
           break;
         }
       }
 
-      if (showDetails) {
+      if (openDetails) {
         updatedShowStopoverDetails.push({ flightRouteIndex, flightIndex });
       }
 
-      this.showStopoverDetails = updatedShowStopoverDetails;
+      this.openStopoverDetails = updatedShowStopoverDetails;
     },
+
+    /*
+    Checking if stopover details of specific flight should be opened
+     */
     shouldShowStopoverDetails(flightRouteIndex, flightIndex) {
-      for (let stopoverDetails of this.showStopoverDetails) {
+      for (let stopoverDetails of this.openStopoverDetails) {
         if (stopoverDetails.flightRouteIndex === flightRouteIndex
         && stopoverDetails.flightIndex === flightIndex) return true;
       }
       return false;
     },
+
+    /*
+    Open booking page and save relevant flight infos
+     */
     onOpenBookingWizard(flightRouteData) {
       Helpers.saveToLocalStorage(Helpers.LocalStorageKeys.FLIGHTROUTE, flightRouteData);
       this.$router.push({ name: 'booking' })
     },
 
-    formatInputDate(date) {
+    /*
+    Formatter function for calendar widget
+     */
+    dateFormattter(date) {
       return moment(date).format("DD-MM-YY")
     },
 
+    /*
+    Save clicked input field for resizing on mobile
+     */
     onClickInput(rowIndex, type) {
       this.selectedInput = { rowIndex, type };
     },
 
-    // show filter drawer with animation on mobile/tablet
+    /*
+    Reset all input field sizes (relevant on mobile)
+     */
+    resetInputSizes() {
+      this.selectedInput = {}
+    },
+
+    /*
+    Show filter drawer with animation on mobile/tablet
+     */
     onClickFilter() {
       this.isFilterDrawerActive = true;
       var self = this;
@@ -406,21 +429,17 @@ export default {
       }, 400);
     },
 
-    // show details of selected flight route
+    /*
+    Show details of selected flight route
+     */
     openFlightRouteDetailsModal(flightRouteResult) {
       this.flightRouteModalData = flightRouteResult;
       this.isFlightModalActive = true;
     },
 
-    getTimeOfStay(flights, index) {
-      if (flights[index + 1] === undefined) return 0;
-
-      let start = moment(flights[index].startDate);
-      let end = moment(flights[index + 1].startDate);
-
-      return Math.round(moment.duration(end.diff(start)).asDays());
-    },
-
+    /*
+    Filter destination airports based on user input
+     */
     onInputAutocomplete(input) {
         this.filteredFlightDestinations = this.flightDestinationStrings.filter(option => option
         .toString()
@@ -428,7 +447,9 @@ export default {
         .indexOf(input.toLowerCase()) >= 0);
     },
 
-    // update input data structure
+    /*
+    Update displayed location input when user selected an airport destination
+     */
     onSelectLocation(locationObj, option) {
       // must be adapted if displayed string changes
       let iataStr = '';
@@ -438,31 +459,35 @@ export default {
       }
       var cityStr = optionSplit[0].trim();
 
-
       locationObj.input = option;
       locationObj.city = cityStr;
       locationObj.iata = iataStr;
     },
 
+    /*
+    Handles trip sections update event coming from outside (= another component)
+     */
     onUpdateTripSectionsEvent(event) {
-      if (event != null && event.data != null && event.data.sections != null) {
-        if (Helpers.relevantTripDetailsChanged(Helpers.getFromLocalStorage(Helpers.LocalStorageKeys.TRIPSECTIONS), event.data)) {
-          this.onUpdateTripSections(event.data);
-          this.$toast.open({
-            message: 'Flights were updated due to changes in another component',
-            type: 'is-warning',
-            duration: 4000
-          })
-        } else {
-          Helpers.saveToLocalStorage(Helpers.LocalStorageKeys.TRIPSECTIONS, event.data);
-        }
+      if (event == null || event.data == null || event.data.sections == null) return;
+
+      if (Helpers.relevantTripDetailsChanged(Helpers.getFromLocalStorage(Helpers.LocalStorageKeys.TRIPSECTIONS), event.data)) {
+        this.onUpdateTripSections(event.data);
+        this.$toast.open({
+          message: 'Flights were updated due to changes in another component',
+          type: 'is-warning',
+          duration: 4000
+        })
+      } else {
+        Helpers.saveToLocalStorage(Helpers.LocalStorageKeys.TRIPSECTIONS, event.data);
       }
     },
 
-    // update ui with newly retrieved trip sections data
+    /*
+    Update ui with newly retrieved trip sections data
+     */
     onUpdateTripSections(tripSectionsData) {
       let searchSection;
-      this.tripSections = tripSectionsData;
+      this.tripSectionsData = tripSectionsData;
       // save trip sections data persistently
       Helpers.saveToLocalStorage(Helpers.LocalStorageKeys.TRIPSECTIONS, tripSectionsData);
 
@@ -487,7 +512,7 @@ export default {
 
             searchSection = {
               startLocation: {
-                ...this.defaultGermanAirport
+                ...Helpers.defaultGermanAirport
               },
               endLocation: {
                 city: tripSection.location,
@@ -533,7 +558,7 @@ export default {
           input: searchData[searchData.length - 1].endLocation.input,
         },
         endLocation: {
-          ...this.defaultGermanAirport
+          ...Helpers.defaultGermanAirport
         },
         travelDate: new Date(tripSectionsData.endDate),
       };
@@ -546,16 +571,9 @@ export default {
       this.searchFlightRoutes();
     },
 
-    resetInputSizes() {
-      this.selectedInput = {}
-    },
-
-    scrollTop() {
-      document.body.scrollTop = 0;
-      document.documentElement.scrollTop = 0;
-    },
-
-    // update displayed filter options
+    /*
+    Update/Refresh displayed filter slider options
+     */
     updateFilterData(searchData) {
       let travelTimes = [];
       let travelTime = ["00:00", "23:59"];
@@ -563,46 +581,6 @@ export default {
         travelTimes.push(travelTime);
       }
       this.filters.travelTimes = travelTimes;
-    },
-
-    // check if time is in certain time range
-    timeInTimespan(time, timespan) {
-      let today = new Date();
-      let travelTime = new Date(time);
-      const timespanTemp = [timespan[0].split(':'), timespan[1].split(':')];
-      //const timeTemp = time.split(':');
-
-      const startDate = new Date(today.getFullYear(), today.getMonth(), today.getDay(), parseInt(timespanTemp[0][0], 10), parseInt(timespanTemp[0][1]), 10);
-      const endDate = new Date(today.getFullYear(), today.getMonth(), today.getDay(), parseInt(timespanTemp[1][0], 10), parseInt(timespanTemp[1][1]), 10);
-      const travelDateAsDate = new Date(today.getFullYear(), today.getMonth(), today.getDay(), travelTime.getHours(), travelTime.getMinutes());
-      const travelDateAsMoment = moment(travelDateAsDate);
-
-      return travelDateAsMoment.isBetween(moment(startDate), moment(endDate), 'minutes', '[]');
-    },
-
-    onResize(event) {
-      // is tablet size
-      if(event.target.innerWidth <= this.SIZE_TABLET && event.target.innerWidth > this.SIZE_PHONE) {
-        this.isTabletSize = true;
-        this.isPhoneSize = false;
-      }
-      // is phone size
-      else if (event.target.innerWidth <= this.SIZE_PHONE) {
-        this.isTabletSize = false;
-        this.isPhoneSize = true;
-      }
-      // is desktop size
-      else {
-        this.isPhoneSize = false;
-        this.isTabletSize = false;
-      }
-    },
-
-    getDisplayedInputDstStr(city, iata) {
-      if (iata === "") {
-        return city;
-      }
-      return `${city} (${iata})`;
     },
 
     // check if flight dates are in the exact order respective trip sections order
@@ -627,6 +605,9 @@ export default {
       this.flightDatesHaveErrors = errorsOccurred;
     },
 
+    /*
+    Start search for flight routes conforming the user input data
+     */
     searchFlightRoutes() {
       var self = this;
 
@@ -658,7 +639,7 @@ export default {
           flightRouteResultsTmp.push(flightRouteTmp);
         }
 
-        this.flightRouteResults = flightRouteResultsTmp;
+        this.rawFlightRouteResults = flightRouteResultsTmp;
 
         self.isLoadingResults = false;
       }, self.getRandomLoadingDuration())
@@ -668,31 +649,38 @@ export default {
       return Math.floor(Math.random() * this.defaultLoadingDuration)
     },
 
+    /*
+    Collection of sorting functions
+     */
     sortByProperty(property) {
       switch(property) {
         case 'price':
           return (a, b) => {
             if (a['price'] < b['price'])
-              return -1
+              return -1;
             if (a['price'] > b['price'])
-              return 1
+              return 1;
             return 0
-          }
+          };
         case 'duration':
           return (a, b) => {
             if (a.travelTime < b.travelTime)
-              return -1
+              return -1;
             if (a.travelTime > b.travelTime)
-              return 1
+              return 1;
             return 0
-          }
+          };
         default:
           return undefined
       }
     }
   },
+
   computed: {
 
+    /*
+    Transforms order of filtered flight route results according to sorting criterium
+     */
     sortedFlightRouteResults() {
         // does the hard sorting work
         var sortedData =  this.filteredFlightRouteList.sort(this.sortByProperty(this.sortCriteria[this.sortCriteriaKey]))
@@ -706,6 +694,9 @@ export default {
         return refreshedData
     },
 
+    /*
+    Assembles the aiport destination list of the location input fields
+     */
     flightDestinationStrings() {
         return this.flightDestinations.map(location => {
           var displayName = location.city;
@@ -715,10 +706,13 @@ export default {
         });
     },
 
+    /*
+    Filter flight route results according to selected filter criteria
+     */
     filteredFlightRouteList() {
 
       // if stopovers are changing
-      let filteredList = this.flightRouteResults.filter((flightRouteResult) => {
+      let filteredList = this.rawFlightRouteResults.filter((flightRouteResult) => {
         for (var flight of flightRouteResult.flights) {
           if (this.filters.stopovers.some(val => val === flight.stopoverCount.toString())) {
             continue;
@@ -745,20 +739,23 @@ export default {
       return filteredList;
     },
 
-    filteredFlightRouteListEmpty() {
-      return this.filteredFlightRouteList === [];
-    }
-  },
-
-  filters: {
-    currency: (val) => {
-      return val + ' €';
-    },
-    momentjs: (val, format) => {
-      return moment(val).format(format);
-    },
-    inMinutes: (val) => {
-      return (val / 1000 / 60) + ' min';
+    /*
+    initialise travel times of filter sliders
+     */
+    initSliderOptionTravelTimes() {
+      for (let i = 0; i < 49; i += 1) {
+        let time = '';
+        if (i === 0) time = '00:00';
+        else if (i === 48) time = '23:59';
+        else if (i % 2 === 0) {
+          if (i < 20) time += '0';
+          time += `${i / 2}:00`;
+        } else {
+          if (i < 20) time += '0';
+          time += `${(i - 1) / 2}:30`;
+        }
+        this.sliderOptions.data[i] = time;
+      }
     }
   },
 
@@ -780,34 +777,14 @@ export default {
   },
 
   mounted() {
-
-    var self = this;
-
-    // register event listeners for resize event
-    window.addEventListener('resize', this.onResize);
-    window.dispatchEvent(new Event('resize'));
-
     // register event listener for documa <-> vue communication
-    window.addEventListener('message', self.onUpdateTripSectionsEvent);
+    window.addEventListener('message', this.onUpdateTripSectionsEvent);
 
-    // fill hours for travel time slider options
-    for (let i = 0; i < 49; i += 1) {
-      let time = '';
-      if (i === 0) time = '00:00';
-      else if (i === 48) time = '23:59';
-      else if (i % 2 === 0) {
-        if (i < 20) time += '0';
-        time += `${i / 2}:00`;
-      } else {
-        if (i < 20) time += '0';
-        time += `${(i - 1) / 2}:30`;
-      }
-      this.options.data[i] = time;
-    }
+    // fill hours for travel time slider sliderOptions
+    this.initSliderOptionTravelTimes();
   },
 
   beforeDestroy() {
-    window.removeEventListener('resize', this.onResize);
     window.removeEventListener('message', this.onUpdateTripSectionsEvent);
   }
 };

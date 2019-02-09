@@ -1,3 +1,6 @@
+/**
+ * Model classes according to domain model
+ */
 /* eslint-disable import/prefer-default-export,no-trailing-spaces,no-underscore-dangle,no-underscore-dangle */
 export class FlightSegment {
   constructor(startDate, startLocation, endDate, endLocation, flightNo = '', cabinClass = '', airline = '') {
@@ -36,7 +39,7 @@ export class FlightSegment {
     return this._startLocation;
   }
 
-  get endLocation( ){
+  get endLocation() {
     return this._endLocation;
   }
 
@@ -70,24 +73,24 @@ export class FlightSegment {
       endDate: this._endDate,
       startLocation: {
         city: this._startLocation.city,
-        iata: this._startLocation.iata
+        iata: this._startLocation.iata,
       },
       endLocation: {
         city: this._endLocation.city,
-        iata: this._endLocation.iata
+        iata: this._endLocation.iata,
       },
       flightNo: this._flightNo,
       cabinClass: this._cabinClass,
       airline: this._airline,
       segmentNo: this._segmentNo,
-      flightTime: this.flightTime
-    }
+      flightTime: this.flightTime,
+    };
   }
 
   static fromJSON(jsonObj) {
     if (jsonObj === null) return null;
 
-    let flightSegment = new FlightSegment(new Date(jsonObj.startDate), jsonObj.startLocation,
+    const flightSegment = new FlightSegment(new Date(jsonObj.startDate), jsonObj.startLocation,
       new Date(jsonObj.endDate), jsonObj.endLocation, jsonObj.flightNo, jsonObj.cabinClass, jsonObj.airline);
     return flightSegment;
   }
@@ -143,7 +146,7 @@ export class Flight {
   }
 
   addFlightSegment(flightSegment) {
-    let newFlightSegment = flightSegment;
+    const newFlightSegment = flightSegment;
     newFlightSegment.segmentNo = this.flightSegments.length;
     this._flightSegments.push(flightSegment);
   }
@@ -163,14 +166,14 @@ export class Flight {
       startDate: this.startDate,
       endDate: this.endDate,
       flightSegments: this._flightSegments.map(flightSegment => flightSegment.toJSON()),
-    }
+    };
   }
 
   static fromJSON(jsonObj) {
     if (jsonObj === null) return null;
 
-    let flight = new Flight();
-    for(const flightSegment of jsonObj.flightSegments) {
+    const flight = new Flight();
+    for (const flightSegment of jsonObj.flightSegments) {
       flight.addFlightSegment(FlightSegment.fromJSON(flightSegment));
     }
     return flight;
@@ -198,8 +201,8 @@ export class FlightRoute {
   toJSON() {
     return {
       price: this.price,
-      flights: this.flights.map(flight => flight.toJSON())
-    }
+      flights: this.flights.map(flight => flight.toJSON()),
+    };
   }
 
   static fromJSON(jsonObj) {

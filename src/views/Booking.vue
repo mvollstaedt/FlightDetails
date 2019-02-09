@@ -12,7 +12,9 @@
           h2.subtitle Gleich Geschafft
     .form-wizard
       form-wizard(title="", subtitle="", stepSize="xs", color="#7957d5", errorColor="#ff3860", finishButtonText="Complete Booking", ref="wizard" :class="{'scrolled-down': hasScrolledDown && (isPhoneSize || isTabletSize)}", @on-change="scrollTop")
-        tab-content(title='Options' :before-change="() => validateStep('options')")
+
+        // First tab: Options
+        tab-content(title='Options' :before-change="() => validateStep('sliderOptions')")
           section.section.trip-section-content(v-if="!isEmpty(flightRouteData)")
             .container
               .title.has-text-left Flugdaten
@@ -40,11 +42,12 @@
             .container
               .title.has-text-left Weitere Optionen
               b-field( horizontal label="Gepäckoption")
-                b-select(v-model="model.options.luggageOption")
+                b-select(v-model="model.sliderOptions.luggageOption")
                   option(v-for="option in luggageOptions", :value="option.id", :key="option.id") {{ option.id }}
               b-field( horizontal label="Sitzplatzreservierung", class="has-text-left")
-                b-switch(v-model="model.options.seatReservation")
+                b-switch(v-model="model.sliderOptions.seatReservation")
 
+        // Second Tab: Personal Details
         tab-content(title='Persönliche Angaben', :before-change="() => validateStep('personalDetails')")
           .section.has-text-left
             .container.container-max-width
@@ -95,6 +98,8 @@
                       span.icon.is-small.is-right(v-if="$v.model.personalDetails.email.$error")
                         i.fas.fa-exclamation-triangle
                     p.help.is-danger(v-if="$v.model.personalDetails.email.$error") Die Email-Adresse ist invalide
+
+        // 3rd Tab: Payment
         tab-content(title='Zahlung')
           .section.has-text-left
             .container.container-max-width
@@ -147,8 +152,14 @@
                       span.icon.is-small.is-right(v-if="$v.model.paymentDetails.securityCode.$error")
                         i.fas.fa-exclamation-triangle
                     p.help.is-danger(v-if="$v.model.paymentDetails.securityCode.$error") Der Sicherheitscode ist invalide
+
+
+        // 4th Tab: Recheck
         tab-content(title='Überprüfung')
           section.section.trip-section-content
+
+
+            // Flight Details
             .container.has-text-left.final-step__flight-info.container-max-width
               .title Flugdaten
               .columns.is-multiline.is-mobile.flight-info.is-vh-centered(v-for="(flight, flightIndex) in flightRouteData.flights" :key="flightIndex")
@@ -197,6 +208,8 @@
                           | {{ flight.getStopoverTime(flightSegment.segmentNo) | inMinutes }}
                         .column.stopover
                           | Verbindung am Flughafen
+
+          // Personal Details
           section.section.trip-section-content
             .container.has-text-left
               .title Persönliche Daten
@@ -206,6 +219,8 @@
                     b {{ localiseDE(key) }}
                   p.column.is-6-mobile
                     | {{ val }}
+
+          // Payment Details
           section.section.trip-section-content
             .container.has-text-left
               .title Zahlungsinformationen
@@ -235,22 +250,18 @@ import BNotification from 'buefy/src/components/notification/Notification.vue';
 import * as Helpers from '../lib/helpers';
 import { FlightRoute } from '../lib/model';
 
-const today = new Date();
-
 export default {
-  name: 'booking',
+  name: 'Booking',
   components: { BNotification },
+  mixins: [Helpers.mixin],
   data() {
+    const today = new Date();
+
     return {
       hasScrolledDown: false,
 
       tripSectionsData: {},
       flightRouteData: {},
-
-      SIZE_PHONE: 768,
-      SIZE_TABLET: 1024,
-      isTabletSize: false,
-      isPhoneSize: false,
 
       luggageOptions: [
         {
@@ -282,7 +293,7 @@ export default {
           birthdate: '1994-02-02',
           email: 'max.mustermann@gmx.de',
         },
-        options: {
+        sliderOptions: {
           seatReservation: false,
           luggageOption: '',
         },
@@ -317,7 +328,7 @@ export default {
           email,
         },
       },
-      options: {
+      sliderOptions: {
 
       },
       paymentDetails: {
@@ -342,12 +353,9 @@ export default {
     },
   },
   methods: {
-    isSameDay(startDate, travelTime, endDate) {
-      return Helpers.isSameDay(startDate, travelTime, endDate);
-    },
-    handleScroll() {
-      this.hasScrolledDown = (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20);
-    },
+    /*
+    Show confirmation dialog if user really wants to cancel the booking
+     */
     onUserCancelBooking() {
       this.$dialog.confirm({
         title: 'Buchung abbrechen',
@@ -356,39 +364,31 @@ export default {
         onConfirm: () => this.$router.push({ name: 'home' }),
       });
     },
+    /*
+    Handle the update trip sections event coming from outside (= other component)
+     */
     onUpdateTripSectionsEvent(event) {
       // making sure the right message event is processed
-      if (event != null && event.data != null && event.data.sections != null) {
-        if (Helpers.relevantTripDetailsChanged(Helpers.getFromLocalStorage(Helpers.LocalStorageKeys.TRIPSECTIONS), event.data)) {
-          this.onUpdateTripSections(event.data);
-        } else {
-          Helpers.saveToLocalStorage(Helpers.LocalStorageKeys.TRIPSECTIONS, event.data);
-        }
+      if (event == null || event.data == null || event.data.sections == null) return;
+
+      if (this.relevantTripDetailsChanged(Helpers.getFromLocalStorage(Helpers.LocalStorageKeys.TRIPSECTIONS), event.data)) {
+        this.onUpdateTripSections(event.data);
+      } else {
+        Helpers.saveToLocalStorage(Helpers.LocalStorageKeys.TRIPSECTIONS, event.data);
       }
     },
 
+    /*
+    If incoming trip detail changes are crucial, abort the booking process
+     */
     onUpdateTripSections(tripSectionsData) {
       Helpers.saveToLocalStorage(Helpers.LocalStorageKeys.TRIPSECTIONS, tripSectionsData);
       this.onAbortBooking();
     },
-    getDisplayedInputDstStr(city, iata) {
-      if (iata === '') {
-        return city;
-      }
-      return `${city} (${iata})`;
-    },
-    localiseDE(val) {
-      const localisedStr = this.localesDE[val];
-      if (localisedStr === null || localisedStr === '') return val;
-      return localisedStr;
-    },
-    isEmpty(obj) {
-      Helpers.isEmpty(obj);
-    },
-    scrollTop() {
-      document.body.scrollTop = 0;
-      document.documentElement.scrollTop = 0;
-    },
+
+    /*
+    Abort booking process
+     */
     onAbortBooking() {
       this.$dialog.alert({
         title: 'Tripänderung',
@@ -402,42 +402,29 @@ export default {
         },
       });
     },
+
+    /*
+    Check if user is in last step
+     */
     isLastStep() {
       if (this.$refs.wizard) {
         return this.$refs.wizard.isLastStep;
       }
       return false;
     },
+
+    /*
+    Validate step when user wants to go on with the next one
+     */
     validateStep(stepName) {
       this.$v.model[stepName].$touch();
       const isValid = !this.$v.model[stepName].$invalid;
       return isValid;
     },
-    getTimeOfStay(flights, index) {
-      if (flights[index + 1] === undefined) return 0;
 
-      const start = moment(flights[index].startDate);
-      const end = moment(flights[index + 1].endDate);
-
-      return Math.round(moment.duration(end.diff(start)).asDays());
-    },
-    onResize(event) {
-      // is tablet size
-      if (event.target.innerWidth <= this.SIZE_TABLET && event.target.innerWidth > this.SIZE_PHONE) {
-        this.isTabletSize = true;
-        this.isPhoneSize = false;
-      }
-      // is phone size
-      else if (event.target.innerWidth <= this.SIZE_PHONE) {
-        this.isTabletSize = false;
-        this.isPhoneSize = true;
-      }
-      // is desktop size
-      else {
-        this.isPhoneSize = false;
-        this.isTabletSize = false;
-      }
-    },
+    /*
+    Handle situation when user wants to finish the booking
+     */
     onFinishBooking(event) {
       const self = this;
 
@@ -468,12 +455,9 @@ export default {
     },
   },
   filters: {
-    splitWords(val) {
-      let words = val;
-      words = words[0].toUpperCase() + words.substring(1, words.length);
-
-      return `${words.replace(/([a-z])([A-Z])/g, '$1 $2')}:`;
-    },
+    /*
+    Only show the last three digits of a secure number
+     */
     concealNumber(val) {
       let concealedNumber = '';
       if (val.length > 0) {
@@ -482,14 +466,10 @@ export default {
       }
       return concealedNumber;
     },
-    momentjs: (val, format) => moment(val).format(format),
-    inMinutes: (val) => (val / 1000 / 60) + ' min',
-  },
-  beforeCreate() {
-    this.moment = moment;
   },
   created() {
-    this.model.options.luggageOption = this.luggageOptions[0].id;
+    // preselect luggage option
+    this.model.sliderOptions.luggageOption = this.luggageOptions[0].id;
 
     // retrieve saved data
     const localTripData = Helpers.getFromLocalStorage(Helpers.LocalStorageKeys.TRIPSECTIONS);
@@ -499,18 +479,9 @@ export default {
     if (localFlightRouteData !== null) this.flightRouteData = FlightRoute.fromJSON(localFlightRouteData);
   },
   mounted() {
-    // listen to scroll events
-    window.addEventListener('scroll', this.handleScroll);
-    // register event listeners for resize event
-    window.addEventListener('resize', this.onResize);
-    window.dispatchEvent(new Event('resize'));
-
     window.addEventListener('message', this.onUpdateTripSectionsEvent);
   },
   destroyed() {
-    // listen to scroll events
-    window.removeEventListener('scroll', this.handleScroll);
-    window.removeEventListener('resize', this.onResize);
     window.removeEventListener('message', this.onUpdateTripSectionsEvent);
   },
 };
