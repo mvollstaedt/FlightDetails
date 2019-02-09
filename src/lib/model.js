@@ -87,8 +87,8 @@ export class FlightSegment {
   static fromJSON(jsonObj) {
     if (jsonObj === null) return null;
 
-    let flightSegment = new FlightSegment(jsonObj.startDate, jsonObj.startLocation,
-      jsonObj.endDate, jsonObj.endLocation, jsonObj.flightNo, jsonObj.cabinClass, jsonObj.airline);
+    let flightSegment = new FlightSegment(new Date(jsonObj.startDate), jsonObj.startLocation,
+      new Date(jsonObj.endDate), jsonObj.endLocation, jsonObj.flightNo, jsonObj.cabinClass, jsonObj.airline);
     return flightSegment;
   }
 }
@@ -146,6 +146,14 @@ export class Flight {
     let newFlightSegment = flightSegment;
     newFlightSegment.segmentNo = this.flightSegments.length;
     this._flightSegments.push(flightSegment);
+  }
+
+  getStopoverTime(startSegmentNo) {
+    // the last flight segment does not have a stopover
+    if (startSegmentNo >= this.stopoverCount
+      || startSegmentNo < 0) return 0;
+
+    return this.flightSegments[startSegmentNo + 1].startDate - this.flightSegments[startSegmentNo].endDate;
   }
 
   toJSON() {

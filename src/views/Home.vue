@@ -97,27 +97,65 @@
               option(value="0") Nach Preis sortieren
               option(value="1") Nach Reisedauer sortieren
           paginate(v-if="sortedFlightRouteResults !== []" name="sortedFlightRouteResults", :list="sortedFlightRouteResults", class="paginate-list", tag="div", :refreshCurrentPage="true")
-            .columns.flight-route-result.has-box-shadow(v-for="flightRouteResult in paginated('sortedFlightRouteResults')")
+            .columns.flight-route-result.has-box-shadow(v-for="(flightRouteResult, flightRouteIndex) in paginated('sortedFlightRouteResults')" :key="flightRouteIndex")
               .column.is-9
                 .column
-                  .columns.is-mobile.flight-info.is-vh-centered(v-for="flight in flightRouteResult.flights")
-                    .column.is-3
-                      .airline-logo.airline-logo-overview(:class="isTabletSize || isPhoneSize ? 'is-mobile' : ''") {{ flight.airline.callsign }}
-                    .column.is-7-desktop.is-relative
-                      p.flight-duration {{ flight.travelTime | inMinutes }}
-                      .is-vh-centered
-                        .flight-start
-                          .flight-location {{ getDisplayedInputDstStr(flight.startLocation.city, flight.startLocation.iata) }}
-                          .flight-time {{ flight.startDate | momentjs('DD.MM.YY - HH:mm')}}
-                        i.flight-hr.fas.fa-plane
-                        .flight-end
-                          .flight-location {{ getDisplayedInputDstStr(flight.endLocation.city, flight.endLocation.iata) }}
-                          .flight-time {{ flight.endDate | momentjs('DD.MM.YY - HH:mm')}}
-                            sup(v-if="!isSameDay(flight.startDate, flight.travelTime, flight.endDate)") +1
+                  .columns.is-multiline.is-mobile.flight-info.is-vh-centered(v-for="(flight, flightIndex) in flightRouteResult.flights" :key="flightIndex")
+                    .column.is-12.flight-info-overview
+                      .columns
+                        .column.is-3.has-text-left
+                          .airline-logo(:class="isTabletSize || isPhoneSize ? 'is-mobile' : ''") {{ flight.airline.callsign }}
+                        .column.is-7-desktop.is-6-tablet.is-relative
+                          p.flight-duration {{ flight.travelTime | inMinutes }}
+                          p.stopover-count(v-show="flight.stopoverCount > 0") {{ flight.stopoverCount + ' Stopover' }}
+                          .is-vh-centered
+                            .flight-start
+                              .flight-location {{ getDisplayedInputDstStr(flight.startLocation.city, flight.startLocation.iata) }}
+                              .flight-time {{ flight.startDate | momentjs('DD.MM.YY - HH:mm')}}
+                            i.flight-hr.fas.fa-plane
+                            .flight-end
+                              .flight-location {{ getDisplayedInputDstStr(flight.endLocation.city, flight.endLocation.iata) }}
+                              .flight-time {{ flight.endDate | momentjs('DD.MM.YY - HH:mm')}}
+                                sup(v-if="!isSameDay(flight.startDate, flight.travelTime, flight.endDate)") +1
+                        .column.is-12-mobile(v-if="flight.stopoverCount > 0")
+                          button.button.is-fullwidth.is-transparent(@click="toggleStopoverDetails(flightRouteIndex, flightIndex)")
+                            span.fas(:class="[shouldShowStopoverDetails(flightRouteIndex, flightIndex) ? 'fa-caret-up' : 'fa-caret-down']")
+                    .column.is-12.flight-info-stopovers(v-show="shouldShowStopoverDetails(flightRouteIndex, flightIndex)")
+                      .columns.flight-info-stopover(v-for="flightSegment in flight.flightSegments")
+                        .column
+                          .columns.is-mobile.is-multiline
+                            .column.is-12
+                              .columns.is-mobile.is-vcentered
+                                .column.is-3.flight-segment-flight-time
+                                  | {{ flightSegment.flightTime | inMinutes }}
+                                .column.flight-segment-detailed-info
+                                  .columns.is-mobile
+                                    .column.flight-segment-start-date
+                                      | {{ flightSegment.startDate | momentjs('HH:mm') }}
+                                    .column.flight-segment-start-location
+                                      | {{ getDisplayedInputDstStr(flightSegment.startLocation.city, flightSegment.startLocation.iata) }}
+                                  .columns.is-mobile
+                                    .column.flight-segment-end-date
+                                      | {{ flightSegment.endDate | momentjs('HH:mm') }}
+                                    .column.flight-segment-end-location
+                                      | {{ getDisplayedInputDstStr(flightSegment.endLocation.city, flightSegment.endLocation.iata) }}
+                                .column.is-3.flight-segment-airline.has-text-centered
+                                  | Betrieben durch
+                                  .airline-logo.flight-segment-airline-logo(:class="isTabletSize || isPhoneSize ? 'is-mobile' : ''")
+                                    | {{ flight.airline.callsign }}
+                          .columns.is-mobile.flight-segment-stopover(v-if="flightSegment.segmentNo !== flight.stopoverCount")
+                            .column.flight-segment-stopover-time.is-3
+                              | {{ flight.getStopoverTime(flightSegment.segmentNo) | inMinutes }}
+                            .column.stopover
+                              | Verbindung am Flughafen
+
+
+
+
               .column.is-3.is-vh-centered.is-vertically-stacked.flight-route-results__cta(:class="isPhoneSize ? 'is-mobile' : 'is-desktop'")
                 .flight-route-price {{ flightRouteResult.price | currency}}
                 button.button.is-medium.is-primary(@click="openFlightRouteDetailsModal(flightRouteResult)") Details
-          paginate-links(for="sortedFlightRouteResults" :async="true")
+          paginate-links(for="sortedFlightRouteResults" :async="true" @change="scrollTop")
         section.flight-route-results.section.column.is-offset-1-desktop(v-else)
           .column
             | Keine Suchergebnisse gefunden
@@ -132,23 +170,59 @@
             section.trip-section-content
               .columns
                 .column
-                  .columns.is-mobile.flight-segment-info.is-vertical-centered.is-multiline(v-for="(flight, index) in flightRouteModalData.flights")
-                    .column.is-12.has-text-left
-                      .flight-date {{ flight.startDate | momentjs('DD.MM.YYYY') }}
-                    .column.is-3.has-text-left
-                      .airline-logo.airline-logo-overview(:class="isTabletSize || isPhoneSize ? 'is-mobile' : ''") {{ flight.airline.callsign }}
-                    .column.is-relative.is-9
-                      p.flight-duration {{ flight.travelTime | inMinutes }}
-                      .is-vh-centered
-                        .flight-start
-                          .flight-location {{ flight.startLocation.city }}
-                          .flight-time {{ flight.startDate | momentjs('DD.MM.YY - HH:mm') }}
-                        i.flight-hr.fas.fa-plane
-                        .flight-end
-                          .flight-location {{ flight.endLocation.city }}
-                          .flight-time {{ flight.endDate | momentjs('DD.MM.YY - HH:mm')}}
-                    .column.is-offset-1.is-10(v-if="index < flightRouteModalData.flights.length - 1")
-                      .trip-section-waiting-time {{ 'Aufenthaltsdauer: ' + getTimeOfStay(flightRouteModalData.flights, index) + ' Tage' }}
+                  .columns.is-multiline.is-mobile.is-vh-centered(v-for="(flight, flightIndex) in flightRouteModalData.flights" :key="flightIndex")
+                    .column.is-12.flight-info-overview
+                      .columns
+                        .column.has-text-left.has-text-weight-bold
+                          | {{ flight.startDate | momentjs('DD.MM.YY') }}:
+                          | {{ flight.startLocation.city + ' - ' + flight.endLocation.city }}
+                      .columns
+                        .column.is-3.has-text-left
+                          .airline-logo(:class="isTabletSize || isPhoneSize ? 'is-mobile' : ''") {{ flight.airline.callsign }}
+                        .column.is-relative
+                          p.flight-duration {{ flight.travelTime | inMinutes }}
+                          p.stopover-count(v-show="flight.stopoverCount > 0") {{ flight.stopoverCount + ' Stopover' }}
+                          .is-vh-centered
+                            .flight-start
+                              .flight-location {{ getDisplayedInputDstStr(flight.startLocation.city, flight.startLocation.iata) }}
+                              .flight-time {{ flight.startDate | momentjs('DD.MM.YY - HH:mm')}}
+                            i.flight-hr.fas.fa-plane
+                            .flight-end
+                              .flight-location {{ getDisplayedInputDstStr(flight.endLocation.city, flight.endLocation.iata) }}
+                              .flight-time {{ flight.endDate | momentjs('DD.MM.YY - HH:mm')}}
+                                sup(v-if="!isSameDay(flight.startDate, flight.travelTime, flight.endDate)") +1
+                    .column.is-12.flight-info-stopovers(v-if="flight.stopoverCount > 0")
+                      .columns.flight-info-stopover(v-for="flightSegment in flight.flightSegments")
+                        .column
+                          .columns.is-mobile.is-multiline
+                            .column.is-12
+                              .columns.is-mobile.is-vcentered
+                                .column.is-3.flight-segment-flight-time
+                                  | {{ flightSegment.flightTime | inMinutes }}
+                                .column.flight-segment-detailed-info
+                                  .columns.is-mobile
+                                    .column.flight-segment-start-date
+                                      | {{ flightSegment.startDate | momentjs('HH:mm') }}
+                                    .column.flight-segment-start-location
+                                      | {{ getDisplayedInputDstStr(flightSegment.startLocation.city, flightSegment.startLocation.iata) }}
+                                  .columns.is-mobile
+                                    .column.flight-segment-end-date
+                                      | {{ flightSegment.endDate | momentjs('HH:mm') }}
+                                    .column.flight-segment-end-location
+                                      | {{ getDisplayedInputDstStr(flightSegment.endLocation.city, flightSegment.endLocation.iata) }}
+                                .column.is-3.flight-segment-airline.has-text-centered
+                                  | Betrieben durch
+                                  .airline-logo.flight-segment-airline-logo(:class="isTabletSize || isPhoneSize ? 'is-mobile' : ''")
+                                    | {{ flight.airline.callsign }}
+                          .columns.is-mobile.flight-segment-stopover(v-if="flightSegment.segmentNo !== flight.stopoverCount")
+                            .column.flight-segment-stopover-time.is-3
+                              | {{ flight.getStopoverTime(flightSegment.segmentNo) | inMinutes }}
+                            .column.stopover.is-5.has-text-weight-bold
+                              | Verbindung am Flughafen
+                            .column.is-offset
+                    .column(v-if="flightIndex < flightRouteModalData.flights.length - 1")
+                      .trip-section-waiting-time {{ 'Aufenthaltsdauer: ' + getTimeOfStay(flightRouteModalData.flights, flightIndex) + ' Tage' }}
+
         footer.modal-card-foot.is-horizontal-centered
           button.button.is-primary(@click="onOpenBookingWizard(flightRouteModalData)")
             | Buchen für {{ flightRouteModalData.price | currency }}
@@ -260,7 +334,7 @@ export default {
       flightRouteModalData: {},
 
       filters: {
-        stopovers: ['0'],
+        stopovers: ['0', '1'],
         travelTimes: [],
       },
 
@@ -276,9 +350,40 @@ export default {
       sortCriteriaKey: "1",
 
       flightDatesHaveErrors: false,
+
+      showStopoverDetails: [],
     };
   },
   methods: {
+    isSameDay(startDate, travelTime, endDate) {
+      return Helpers.isSameDay(startDate, travelTime, endDate);
+    },
+    toggleStopoverDetails(flightRouteIndex, flightIndex) {
+      let showDetails = true;
+      let updatedShowStopoverDetails = this.showStopoverDetails;
+
+      for (let i = 0; i < this.showStopoverDetails.length; i++) {
+        if (this.showStopoverDetails[i].flightRouteIndex === flightRouteIndex
+          && this.showStopoverDetails[i].flightIndex === flightIndex) {
+          updatedShowStopoverDetails.splice(i, 1);
+          showDetails = false;
+          break;
+        }
+      }
+
+      if (showDetails) {
+        updatedShowStopoverDetails.push({ flightRouteIndex, flightIndex });
+      }
+
+      this.showStopoverDetails = updatedShowStopoverDetails;
+    },
+    shouldShowStopoverDetails(flightRouteIndex, flightIndex) {
+      for (let stopoverDetails of this.showStopoverDetails) {
+        if (stopoverDetails.flightRouteIndex === flightRouteIndex
+        && stopoverDetails.flightIndex === flightIndex) return true;
+      }
+      return false;
+    },
     onOpenBookingWizard(flightRouteData) {
       Helpers.saveToLocalStorage(Helpers.LocalStorageKeys.FLIGHTROUTE, flightRouteData);
       this.$router.push({ name: 'booking' })
@@ -290,18 +395,6 @@ export default {
 
     onClickInput(rowIndex, type) {
       this.selectedInput = { rowIndex, type };
-    },
-
-    // check if start and end date are on the same day,
-    // otherwise show "+1" to indicate that
-    isSameDay(startDateStr, travelTime, endDateStr) {
-      let startTimeMoment = moment(startDateStr);
-      let endDate = new Date(endDateStr);
-      let endDateMoment;
-
-      let startDateMoment = moment({ years: endDate.getFullYear(), months: endDate.getMonth(), days: endDate.getDay(), hours: startTimeMoment.hours(), minutes: startTimeMoment.minutes()});
-      endDateMoment = moment(startDateMoment).add(travelTime / 1000 / 60, 'minutes');
-      return startDateMoment.isSame(endDateMoment, 'days');
     },
 
     // show filter drawer with animation on mobile/tablet
@@ -455,6 +548,11 @@ export default {
 
     resetInputSizes() {
       this.selectedInput = {}
+    },
+
+    scrollTop() {
+      document.body.scrollTop = 0;
+      document.documentElement.scrollTop = 0;
     },
 
     // update displayed filter options
@@ -750,8 +848,17 @@ export default {
   right: 0
   margin-left: auto
   margin-right: auto
-  top: 5px
+  bottom: 60%
 
+.stopover-count
+  font-size: .7rem
+  position: absolute
+  left: 0
+  right: 0
+  margin-left: auto
+  margin-right: auto
+  top: 65%
+  color: #693935
 
 .flight-no-0
   bottom: 15%
@@ -802,13 +909,39 @@ export default {
   display: inline-block
 
 .flight-hr
-  padding: 0 1rem
+  padding: 0 1.5rem
+
+.flight-info-overview
+  padding: 1.25rem .75rem .75rem .75rem !important
+  &:first-child
+    padding-bottom: 1.25rem !important
+
+.flight-info-stopovers
+  margin: 1rem 0
 
 .is-vertically-stacked
   flex-direction: column
 
 .flight-route-price
   font-size: 2rem
+  font-weight: bold
+
+.flight-segment-airline
+  font-size: .8rem
+
+.flight-segment-stopover
+  background-color: #e4edf4
+  margin-bottom: .25rem !important
+  margin-top: calc(1.5rem - 0.75rem) !important
+
+.modal
+  .flight-segment-stopover
+    background-color: transparent
+
+.flight-segment-detailed-info
+  border-left: 2px dashed #bfc8ce
+
+.flight-segment-flight-time, .flight-segment-stopover-time
   font-weight: bold
 
 .is-relative
@@ -820,8 +953,6 @@ export default {
   word-break: break-word
   font-weight: bold
   display: inline-block
-
-.airline-logo-overview
   font-size: .5rem
   text-transform: none
   line-height: .8rem
@@ -837,6 +968,7 @@ export default {
   font-weight: bold
   background-color: rgb(232, 240, 246)
   border-radius: 10px
+  padding: 1rem 0
 
 @media screen and (min-width: 1024px)
   .modal-card, .modal-content

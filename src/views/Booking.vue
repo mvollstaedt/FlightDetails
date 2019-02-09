@@ -11,7 +11,7 @@
             i.fas.fa-clipboard.title-icon
           h2.subtitle Gleich Geschafft
     .form-wizard
-      form-wizard(title="", subtitle="", stepSize="xs", color="#7957d5", errorColor="#ff3860", finishButtonText="Complete Booking", ref="wizard" :class="{'scrolled-down': hasScrolledDown}", @on-change="scrollTop")
+      form-wizard(title="", subtitle="", stepSize="xs", color="#7957d5", errorColor="#ff3860", finishButtonText="Complete Booking", ref="wizard" :class="{'scrolled-down': hasScrolledDown && (isPhoneSize || isTabletSize)}", @on-change="scrollTop")
         tab-content(title='Options' :before-change="() => validateStep('options')")
           section.section.trip-section-content(v-if="!isEmpty(flightRouteData)")
             .container
@@ -19,21 +19,23 @@
               .trip-section-wrapper.has-box-shadow
                 .columns
                   .column
-                    .columns.is-mobile.flight-segment-info.is-vertical-centered.is-multiline(v-for="(flight, index) in flightRouteData.flights")
-                      .column.is-2
-                        .airline-logo.airline-logo-overview(:class="isTabletSize || isPhoneSize ? 'is-mobile' : ''") {{ flight.airline.callsign }}
-                      .column.is-relative.is-10
-                        p.flight-duration {{ flight.travelTime | inMinutes }}
-                        .is-vh-centered
-                          .flight-start
-                            .flight-location {{ getDisplayedInputDstStr(flight.startLocation.city, flight.startLocation.iata) }}
-                            .flight-time {{ flight.startDate | momentjs('DD.MM.YY - HH:mm') }}
-                          i.flight-hr.fas.fa-plane
-                          .flight-end
-                            .flight-location {{ getDisplayedInputDstStr(flight.endLocation.city, flight.endLocation.iata)  }}
-                            .flight-time {{ flight.endDate | momentjs('DD.MM.YY - HH:mm') }}
-                      .column.is-offset-1.is-10(v-if="index < flightRouteData.flights.length - 1")
-                        .trip-section-waiting-time {{ 'Aufenthaltsdauer: ' + getTimeOfStay(flightRouteData.flights, index) + ' Tage' }}
+                    .columns.is-multiline.is-mobile.flight-info.is-vh-centered(v-for="(flight, flightIndex) in flightRouteData.flights" :key="flightIndex")
+                      .column.is-12.flight-info-overview
+                        .columns
+                          .column.is-3.has-text-left
+                            .airline-logo(:class="isTabletSize || isPhoneSize ? 'is-mobile' : ''") {{ flight.airline.callsign }}
+                          .column.is-7-desktop.is-6-tablet.is-relative
+                            p.flight-duration {{ flight.travelTime | inMinutes }}
+                            p.stopover-count(v-show="flight.stopoverCount > 0") {{ flight.stopoverCount + ' Stopover' }}
+                            .is-vh-centered
+                              .flight-start
+                                .flight-location {{ getDisplayedInputDstStr(flight.startLocation.city, flight.startLocation.iata) }}
+                                .flight-time {{ flight.startDate | momentjs('DD.MM.YY - HH:mm')}}
+                              i.flight-hr.fas.fa-plane
+                              .flight-end
+                                .flight-location {{ getDisplayedInputDstStr(flight.endLocation.city, flight.endLocation.iata) }}
+                                .flight-time {{ flight.endDate | momentjs('DD.MM.YY - HH:mm')}}
+                                  sup(v-if="!isSameDay(flight.startDate, flight.travelTime, flight.endDate)") +1
           section.section.further-options-content
             .container
               .title.has-text-left Weitere Optionen
@@ -45,7 +47,7 @@
 
         tab-content(title='Persönliche Angaben', :before-change="() => validateStep('personalDetails')")
           .section.has-text-left
-            .container
+            .container.container-max-width
               .title Persönliche Daten
               .field.is-horizontal
                 .field-label.is-normal
@@ -95,7 +97,7 @@
                     p.help.is-danger(v-if="$v.model.personalDetails.email.$error") Die Email-Adresse ist invalide
         tab-content(title='Zahlung')
           .section.has-text-left
-            .container
+            .container.container-max-width
               .title Zahlungsinformationen
               b-notification
                 | Derzeit akzeptieren wir nur Kreditkarten als Zahlungsmöglichkeit. Wir entschuldigen uns für jegliche Unannehmlichkeiten.
@@ -146,15 +148,56 @@
                         i.fas.fa-exclamation-triangle
                     p.help.is-danger(v-if="$v.model.paymentDetails.securityCode.$error") Der Sicherheitscode ist invalide
         tab-content(title='Überprüfung')
-          section.section
-            .container.has-text-left
+          section.section.trip-section-content
+            .container.has-text-left.final-step__flight-info.container-max-width
               .title Flugdaten
-              .final-step__flight(v-for="flight in flightRouteData.flights")
-                h3 {{ moment(flight.startDate).format('DD.MM.YY') }}
-                p {{ getDisplayedInputDstStr(flight.startLocation.city, flight.startLocation.iata) }}
-                  span.fas.fa-plane.final-step__plane-icon
-                  | {{ getDisplayedInputDstStr(flight.endLocation.city, flight.endLocation.iata) }}
-          section.section
+              .columns.is-multiline.is-mobile.flight-info.is-vh-centered(v-for="(flight, flightIndex) in flightRouteData.flights" :key="flightIndex")
+                .column.is-12.flight-info-overview
+                  .columns
+                    .column.has-text-left.has-text-weight-bold
+                      .flight-title
+                        | {{ flight.startDate | momentjs('DD.MM.YY') }}:
+                        | {{ flight.startLocation.city + ' - ' + flight.endLocation.city }}
+                  .columns
+                    .column.is-7-desktop.is-6-tablet.is-relative
+                      .is-vh-centered
+                        .flight-start
+                          .flight-location {{ getDisplayedInputDstStr(flight.startLocation.city, flight.startLocation.iata) }}
+                          .flight-time {{ flight.startDate | momentjs('DD.MM.YY - HH:mm')}}
+                        i.flight-hr.fas.fa-plane
+                        .flight-end
+                          .flight-location {{ getDisplayedInputDstStr(flight.endLocation.city, flight.endLocation.iata) }}
+                          .flight-time {{ flight.endDate | momentjs('DD.MM.YY - HH:mm')}}
+                            sup(v-if="!isSameDay(flight.startDate, flight.travelTime, flight.endDate)") +1
+                .column.is-12.flight-info-stopovers(v-if="flight.stopoverCount > 0")
+                  .columns.flight-info-stopover(v-for="flightSegment in flight.flightSegments")
+                    .column
+                      .columns.is-mobile.is-multiline
+                        .column.is-12
+                          .columns.is-mobile.is-vcentered
+                            .column.is-3.flight-segment-flight-time
+                              | {{ flightSegment.flightTime | inMinutes }}
+                            .column.flight-segment-detailed-info
+                              .columns.is-mobile
+                                .column.flight-segment-start-date
+                                  | {{ flightSegment.startDate | momentjs('HH:mm') }}
+                                .column.flight-segment-start-location
+                                  | {{ getDisplayedInputDstStr(flightSegment.startLocation.city, flightSegment.startLocation.iata) }}
+                              .columns.is-mobile
+                                .column.flight-segment-end-date
+                                  | {{ flightSegment.endDate | momentjs('HH:mm') }}
+                                .column.flight-segment-end-location
+                                  | {{ getDisplayedInputDstStr(flightSegment.endLocation.city, flightSegment.endLocation.iata) }}
+                            .column.is-3.flight-segment-airline.has-text-centered
+                              | Betrieben durch
+                              .airline-logo.flight-segment-airline-logo(:class="isTabletSize || isPhoneSize ? 'is-mobile' : ''")
+                                | {{ flight.airline.callsign }}
+                      .columns.is-mobile.flight-segment-stopover(v-if="flightSegment.segmentNo !== flight.stopoverCount")
+                        .column.flight-segment-stopover-time.is-3
+                          | {{ flight.getStopoverTime(flightSegment.segmentNo) | inMinutes }}
+                        .column.stopover
+                          | Verbindung am Flughafen
+          section.section.trip-section-content
             .container.has-text-left
               .title Persönliche Daten
               .final-step__personal-details(v-for="(val, key) in model.personalDetails")
@@ -163,7 +206,7 @@
                     b {{ localiseDE(key) }}
                   p.column.is-6-mobile
                     | {{ val }}
-          section.section
+          section.section.trip-section-content
             .container.has-text-left
               .title Zahlungsinformationen
               .final-step__personal-details(v-for="(val, key) in model.paymentDetails")
@@ -299,6 +342,9 @@ export default {
     },
   },
   methods: {
+    isSameDay(startDate, travelTime, endDate) {
+      return Helpers.isSameDay(startDate, travelTime, endDate);
+    },
     handleScroll() {
       this.hasScrolledDown = (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20);
     },
@@ -480,6 +526,9 @@ export default {
   position: absolute
   left: 0
 
+.container-max-width
+  max-width: 800px !important
+
 .wizard-header
   display: none
 .wizard-navigation
@@ -503,7 +552,19 @@ export default {
 .trip-section-content
   .container
     max-width: 800px !important
-.container
+
+.flight-title
+  font-size: 1.2rem
+
+.flight-segment-stopover
+  margin: 0 !important
+.final-step__flight-info
+  .flight-info
+    border-left: 6px solid #d8d8d8
+    margin-bottom: 2rem !important
+    border-bottom: 0
+    &:last-child
+      margin-bottom: 0
 
 
 .trip-section-wrapper

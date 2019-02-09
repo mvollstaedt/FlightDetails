@@ -79,7 +79,7 @@ export function queryFlightRoutes(flightRouteParams) {
       for (const depTime of srcAirport.dep_times) {
         if (flights[i] === undefined) flights[i] = [];
 
-        const randTravelTime = getRandTravelTime(60, 180);
+        const randTravelTime = getRandTravelTime(90, 180);
 
         const startTimeAsMoment = moment({
           years: new Date(flightQuery.travelDate).getFullYear(),
@@ -138,6 +138,16 @@ export function ResponseJSONToFlightRoute(flightRouteJSON) {
   for (const flight of flightRouteJSON.flights) {
     const flightTmp = new Flight();
 
+    const endDate1 = moment(flight.startDate).add(20, 'minutes').toDate();
+    const startDate2 = moment(flight.startDate).add(40, 'minutes').toDate();
+
+    const endLocation1 = { city: "Paris", iata: "CDG", input: 'Paris (CDG)'};
+    const startLocation2 = endLocation1;
+
+    //const flightSegmentTmp1 = new FlightSegment(flight.startDate, flight.startLocation, endDate1, endLocation1, flight.flightNo, flight.cabinClass, flight.airline);
+    //const flightSegmentTmp2 = new FlightSegment(startDate2, startLocation2, flight.endDate, flight.endLocation, flight.flightNo, flight.cabinClass, flight.airline);
+    //flightTmp.addFlightSegment(flightSegmentTmp1);
+    //flightTmp.addFlightSegment(flightSegmentTmp2);
     const flightSegmentTmp = new FlightSegment(flight.startDate, flight.startLocation, flight.endDate, flight.endLocation, flight.flightNo, flight.cabinClass, flight.airline);
     flightTmp.addFlightSegment(flightSegmentTmp);
 
@@ -236,3 +246,15 @@ export const LocalStorageKeys = {
   FLIGHTROUTE: 'flightRouteData',
   TRIPSECTIONS: 'tripSectionsData',
 };
+
+// check if start and end date are on the same day,
+// otherwise show "+1" to indicate that
+export function isSameDay(startDateStr, travelTime, endDateStr) {
+  let startTimeMoment = moment(startDateStr);
+  let endDate = new Date(endDateStr);
+  let endDateMoment;
+
+  let startDateMoment = moment({ years: endDate.getFullYear(), months: endDate.getMonth(), days: endDate.getDay(), hours: startTimeMoment.hours(), minutes: startTimeMoment.minutes()});
+  endDateMoment = moment(startDateMoment).add(travelTime / 1000 / 60, 'minutes');
+  return startDateMoment.isSame(endDateMoment, 'days');
+}
