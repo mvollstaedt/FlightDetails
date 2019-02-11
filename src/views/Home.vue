@@ -468,17 +468,22 @@ export default {
     Handles trip sections update event coming from outside (= another component)
      */
     onUpdateTripSectionsEvent(event) {
-      if (event == null || event.data == null || event.data.sections == null) return;
+      let eventData;
+      if (typeof event.data === 'object' || event.data instanceof Object) eventData = event.data;
+      else eventData = JSON.parse(event.data);
+      //console.log(JSON.stringify(eventData, null, 4));
 
-      if (Helpers.relevantTripDetailsChanged(Helpers.getFromLocalStorage(Helpers.LocalStorageKeys.TRIPSECTIONS), event.data)) {
-        this.onUpdateTripSections(event.data);
+      if (eventData == null || eventData.sections == null) return;
+
+      if (this.relevantTripDetailsChanged(Helpers.getFromLocalStorage(Helpers.LocalStorageKeys.TRIPSECTIONS), eventData)) {
+        this.onUpdateTripSections(eventData);
         this.$toast.open({
           message: 'Flights were updated due to changes in another component',
           type: 'is-warning',
           duration: 4000
         })
       } else {
-        Helpers.saveToLocalStorage(Helpers.LocalStorageKeys.TRIPSECTIONS, event.data);
+        Helpers.saveToLocalStorage(Helpers.LocalStorageKeys.TRIPSECTIONS, eventData);
       }
     },
 
@@ -738,25 +743,6 @@ export default {
 
       return filteredList;
     },
-
-    /*
-    initialise travel times of filter sliders
-     */
-    initSliderOptionTravelTimes() {
-      for (let i = 0; i < 49; i += 1) {
-        let time = '';
-        if (i === 0) time = '00:00';
-        else if (i === 48) time = '23:59';
-        else if (i % 2 === 0) {
-          if (i < 20) time += '0';
-          time += `${i / 2}:00`;
-        } else {
-          if (i < 20) time += '0';
-          time += `${(i - 1) / 2}:30`;
-        }
-        this.sliderOptions.data[i] = time;
-      }
-    }
   },
 
   created() {
@@ -781,7 +767,19 @@ export default {
     window.addEventListener('message', this.onUpdateTripSectionsEvent);
 
     // fill hours for travel time slider sliderOptions
-    this.initSliderOptionTravelTimes();
+    for (let i = 0; i < 49; i += 1) {
+      let time = '';
+      if (i === 0) time = '00:00';
+      else if (i === 48) time = '23:59';
+      else if (i % 2 === 0) {
+        if (i < 20) time += '0';
+        time += `${i / 2}:00`;
+      } else {
+        if (i < 20) time += '0';
+        time += `${(i - 1) / 2}:30`;
+      }
+      this.sliderOptions.data[i] = time;
+    }
   },
 
   beforeDestroy() {
@@ -862,6 +860,7 @@ export default {
 
 .has-box-shadow
   box-shadow: 0px 9px 33px -9px rgba(0,0,0,0.75)
+  border: 1px solid rgba(128, 128, 128, 0.13)
 
 .flight-route-results__cta
   &.is-mobile

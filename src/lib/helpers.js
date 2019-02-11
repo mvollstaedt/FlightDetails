@@ -181,6 +181,7 @@ export function ResponseJSONToFlightRoute(flightRouteJSON) {
     // const flightSegmentTmp2 = new FlightSegment(startDate2, startLocation2, flight.endDate, flight.endLocation, flight.flightNo, flight.cabinClass, flight.airline);
     // flightTmp.addFlightSegment(flightSegmentTmp1);
     // flightTmp.addFlightSegment(flightSegmentTmp2);
+
     const flightSegmentTmp = new FlightSegment(flight.startDate, flight.startLocation, flight.endDate, flight.endLocation, flight.flightNo, flight.cabinClass, flight.airline);
     flightTmp.addFlightSegment(flightSegmentTmp);
 

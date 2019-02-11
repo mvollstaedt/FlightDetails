@@ -368,13 +368,17 @@ export default {
     Handle the update trip sections event coming from outside (= other component)
      */
     onUpdateTripSectionsEvent(event) {
-      // making sure the right message event is processed
-      if (event == null || event.data == null || event.data.sections == null) return;
+      let eventData;
+      if (typeof event.data === 'object' || event.data instanceof Object) eventData = event.data;
+      else eventData = JSON.parse(event.data);
+      //console.log(JSON.stringify(eventData, null, 4));
 
-      if (this.relevantTripDetailsChanged(Helpers.getFromLocalStorage(Helpers.LocalStorageKeys.TRIPSECTIONS), event.data)) {
-        this.onUpdateTripSections(event.data);
+      if (eventData == null || eventData.sections == null) return;
+
+      if (this.relevantTripDetailsChanged(Helpers.getFromLocalStorage(Helpers.LocalStorageKeys.TRIPSECTIONS), eventData)) {
+        this.onUpdateTripSections(eventData);
       } else {
-        Helpers.saveToLocalStorage(Helpers.LocalStorageKeys.TRIPSECTIONS, event.data);
+        Helpers.saveToLocalStorage(Helpers.LocalStorageKeys.TRIPSECTIONS, eventData);
       }
     },
 
