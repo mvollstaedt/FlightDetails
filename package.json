@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "buefy": "^0.7.2",
-    "moment": "^2.22.2",
+    "moment": "^2.29.4",
     "vue": "^2.5.17",
     "vue-form-wizard": "^0.8.4",
     "vue-paginate": "^3.6.0",
